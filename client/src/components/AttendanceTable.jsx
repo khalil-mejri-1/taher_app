@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { History, Edit2, Archive, Trash2, CheckCircle, RotateCcw } from 'lucide-react';
+import { History, Edit2, Archive, Trash2, CheckCircle, RotateCcw, Loader2 } from 'lucide-react';
 import './AttendanceTable.css';
 
 const AttendanceTable = ({
@@ -32,6 +32,7 @@ const AttendanceTable = ({
   };
 
   const [finishedSessions, setFinishedSessions] = useState([]);
+  const [loadingCheck, setLoadingCheck] = useState(null); // { studentId, sessionKey }
   const [isWeeksHistoryModalOpen, setIsWeeksHistoryModalOpen] = useState(false);
   const [sessionModal, setSessionModal] = useState(null); // { key, label, day }
 
@@ -53,6 +54,15 @@ const AttendanceTable = ({
     const planningFn = SESSION_PLANNING_MAP[sessionKey];
     if (!planningFn) return [];
     return students.filter(s => planningFn(s.planning));
+  };
+
+  const handleCheckClick = async (studentId, sessionKey) => {
+    setLoadingCheck({ studentId, sessionKey });
+    try {
+      await onMarkAttendance(studentId, sessionKey);
+    } finally {
+      setLoadingCheck(null);
+    }
   };
 
   const printAttendanceSheet = (sessionKey, label, day, sessionStudents) => {
@@ -261,12 +271,54 @@ const AttendanceTable = ({
                     </div>
                   </div>
                 </td>
-                <td><div className={`attendance-check ${!student.planning?.mardi?.matin ? 'disabled' : ''} ${isPresent(student, 'mardi_matin') ? 'present' : ''}`} onClick={() => !isArchivesView && !selectedWeekData && student.planning?.mardi?.matin && onMarkAttendance(student._id, 'mardi_matin')}></div></td>
-                <td><div className={`attendance-check ${!student.planning?.mercredi?.matin ? 'disabled' : ''} ${isPresent(student, 'mercredi_matin') ? 'present' : ''}`} onClick={() => !isArchivesView && !selectedWeekData && student.planning?.mercredi?.matin && onMarkAttendance(student._id, 'mercredi_matin')}></div></td>
-                <td><div className={`attendance-check ${!student.planning?.mercredi?.amidi ? 'disabled' : ''} ${isPresent(student, 'mercredi_amidi') ? 'present' : ''}`} onClick={() => !isArchivesView && !selectedWeekData && student.planning?.mercredi?.amidi && onMarkAttendance(student._id, 'mercredi_amidi')}></div></td>
-                <td><div className={`attendance-check ${!student.planning?.samedi?.matin ? 'disabled' : ''} ${isPresent(student, 'samedi_matin') ? 'present' : ''}`} onClick={() => !isArchivesView && !selectedWeekData && student.planning?.samedi?.matin && onMarkAttendance(student._id, 'samedi_matin')}></div></td>
-                <td><div className={`attendance-check ${!student.planning?.samedi?.amidi ? 'disabled' : ''} ${isPresent(student, 'samedi_amidi') ? 'present' : ''}`} onClick={() => !isArchivesView && !selectedWeekData && student.planning?.samedi?.amidi && onMarkAttendance(student._id, 'samedi_amidi')}></div></td>
-                <td><div className={`attendance-check ${!student.planning?.dimanche?.unique ? 'disabled' : ''} ${isPresent(student, 'dimanche_unique') ? 'present' : ''}`} onClick={() => !isArchivesView && !selectedWeekData && student.planning?.dimanche?.unique && onMarkAttendance(student._id, 'dimanche_unique')}></div></td>
+                <td>
+                  <div 
+                    className={`attendance-check ${!student.planning?.mardi?.matin ? 'disabled' : ''} ${isPresent(student, 'mardi_matin') ? 'present' : ''} ${loadingCheck?.studentId === student._id && loadingCheck?.sessionKey === 'mardi_matin' ? 'loading' : ''}`} 
+                    onClick={() => !isArchivesView && !selectedWeekData && !loadingCheck && student.planning?.mardi?.matin && handleCheckClick(student._id, 'mardi_matin')}
+                  >
+                    {loadingCheck?.studentId === student._id && loadingCheck?.sessionKey === 'mardi_matin' && <Loader2 size={12} className="check-spinner" />}
+                  </div>
+                </td>
+                <td>
+                  <div 
+                    className={`attendance-check ${!student.planning?.mercredi?.matin ? 'disabled' : ''} ${isPresent(student, 'mercredi_matin') ? 'present' : ''} ${loadingCheck?.studentId === student._id && loadingCheck?.sessionKey === 'mercredi_matin' ? 'loading' : ''}`} 
+                    onClick={() => !isArchivesView && !selectedWeekData && !loadingCheck && student.planning?.mercredi?.matin && handleCheckClick(student._id, 'mercredi_matin')}
+                  >
+                    {loadingCheck?.studentId === student._id && loadingCheck?.sessionKey === 'mercredi_matin' && <Loader2 size={12} className="check-spinner" />}
+                  </div>
+                </td>
+                <td>
+                  <div 
+                    className={`attendance-check ${!student.planning?.mercredi?.amidi ? 'disabled' : ''} ${isPresent(student, 'mercredi_amidi') ? 'present' : ''} ${loadingCheck?.studentId === student._id && loadingCheck?.sessionKey === 'mercredi_amidi' ? 'loading' : ''}`} 
+                    onClick={() => !isArchivesView && !selectedWeekData && !loadingCheck && student.planning?.mercredi?.amidi && handleCheckClick(student._id, 'mercredi_amidi')}
+                  >
+                    {loadingCheck?.studentId === student._id && loadingCheck?.sessionKey === 'mercredi_amidi' && <Loader2 size={12} className="check-spinner" />}
+                  </div>
+                </td>
+                <td>
+                  <div 
+                    className={`attendance-check ${!student.planning?.samedi?.matin ? 'disabled' : ''} ${isPresent(student, 'samedi_matin') ? 'present' : ''} ${loadingCheck?.studentId === student._id && loadingCheck?.sessionKey === 'samedi_matin' ? 'loading' : ''}`} 
+                    onClick={() => !isArchivesView && !selectedWeekData && !loadingCheck && student.planning?.samedi?.matin && handleCheckClick(student._id, 'samedi_matin')}
+                  >
+                    {loadingCheck?.studentId === student._id && loadingCheck?.sessionKey === 'samedi_matin' && <Loader2 size={12} className="check-spinner" />}
+                  </div>
+                </td>
+                <td>
+                  <div 
+                    className={`attendance-check ${!student.planning?.samedi?.amidi ? 'disabled' : ''} ${isPresent(student, 'samedi_amidi') ? 'present' : ''} ${loadingCheck?.studentId === student._id && loadingCheck?.sessionKey === 'samedi_amidi' ? 'loading' : ''}`} 
+                    onClick={() => !isArchivesView && !selectedWeekData && !loadingCheck && student.planning?.samedi?.amidi && handleCheckClick(student._id, 'samedi_amidi')}
+                  >
+                    {loadingCheck?.studentId === student._id && loadingCheck?.sessionKey === 'samedi_amidi' && <Loader2 size={12} className="check-spinner" />}
+                  </div>
+                </td>
+                <td>
+                  <div 
+                    className={`attendance-check ${!student.planning?.dimanche?.unique ? 'disabled' : ''} ${isPresent(student, 'dimanche_unique') ? 'present' : ''} ${loadingCheck?.studentId === student._id && loadingCheck?.sessionKey === 'dimanche_unique' ? 'loading' : ''}`} 
+                    onClick={() => !isArchivesView && !selectedWeekData && !loadingCheck && student.planning?.dimanche?.unique && handleCheckClick(student._id, 'dimanche_unique')}
+                  >
+                    {loadingCheck?.studentId === student._id && loadingCheck?.sessionKey === 'dimanche_unique' && <Loader2 size={12} className="check-spinner" />}
+                  </div>
+                </td>
                 <td>
                   <div className="cycle-tracker">
                     {(() => {
