@@ -6,9 +6,10 @@ import AttendanceTable from './components/AttendanceTable';
 import RegistrationModal from './components/RegistrationModal';
 import StudentHistoryModal from './components/StudentHistoryModal';
 import FinancePage from './components/FinancePage';
+import NotificationModal from './components/NotificationModal';
 import './index.css';
 
-const API_URL = 'https://taher-app.vercel.app/api/students';
+const API_URL = 'http://localhost:5000/api/students';
 
 function App() {
   const [students, setStudents] = useState([]);
@@ -20,6 +21,58 @@ function App() {
   const [selectedWeekData, setSelectedWeekData] = useState(null);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [selectedStudentHistory, setSelectedStudentHistory] = useState(null);
+  const [notification, setNotification] = useState({
+    isOpen: false,
+    type: 'alert',
+    title: '',
+    message: '',
+    onConfirm: () => {},
+    inputValue: '',
+    placeholder: ''
+  });
+
+  const customAlert = (title, message) => {
+    setNotification({
+      isOpen: true,
+      type: 'alert',
+      title,
+      message,
+      onConfirm: () => {}
+    });
+  };
+
+  const customConfirm = (title, message) => {
+    return new Promise((resolve) => {
+      setNotification({
+        isOpen: true,
+        type: 'confirm',
+        title,
+        message,
+        onConfirm: () => resolve(true),
+        onClose: () => {
+          setNotification(prev => ({ ...prev, isOpen: false }));
+          resolve(false);
+        }
+      });
+    });
+  };
+
+  const customPrompt = (title, message, placeholder = '') => {
+    return new Promise((resolve) => {
+      setNotification({
+        isOpen: true,
+        type: 'prompt',
+        title,
+        message,
+        placeholder,
+        onConfirm: (val) => resolve(val),
+        onClose: () => {
+          setNotification(prev => ({ ...prev, isOpen: false }));
+          resolve(null);
+        }
+      });
+    });
+  };
 
   useEffect(() => {
     fetchStudents();
@@ -28,7 +81,7 @@ function App() {
 
   const fetchWeeks = async () => {
     try {
-      const { data } = await axios.get('https://taher-app.vercel.app/api/weeks');
+      const { data } = await axios.get('http://localhost:5000/api/weeks');
       setWeeks(data);
     } catch (err) {
       console.error('Error fetching weeks:', err);
@@ -46,10 +99,10 @@ function App() {
 
   const isSundayOnly = (p) => {
     if (!p) return false;
-    return p.dimanche?.unique && 
-           !p.mardi?.matin && 
-           !p.mercredi?.matin && !p.mercredi?.amidi &&
-           !p.samedi?.matin && !p.samedi?.amidi;
+    return p.dimanche?.unique &&
+      !p.mardi?.matin &&
+      !p.mercredi?.matin && !p.mercredi?.amidi &&
+      !p.samedi?.matin && !p.samedi?.amidi;
   };
 
   const handleSaveStudent = async (formData) => {
@@ -137,7 +190,7 @@ function App() {
 
   const handleNewWeek = async (finishedSessions) => {
     try {
-      await axios.post('https://taher-app.vercel.app/api/weeks/save-and-reset', {
+      await axios.post('http://localhost:5000/api/weeks/save-and-reset', {
         startDate: currentWeekDate,
         finishedSessions: finishedSessions
       });
@@ -203,7 +256,7 @@ function App() {
     let finalMoneyPaid = student.totalMoneyPaid || 0;
 
     if (newStatus === "Payer Partiellement / دفع جزئي") {
-      const amountStr = window.prompt("Entrez le montant payé (DT) / أدخل المبلغ المدفوع:");
+      const amountStr = await customPrompt("Paiement Partiel", "Entrez le montant payé (DT) / أدخل المبلغ المدفوع:", "Ex: 40");
       if (amountStr === null) return;
       const amount = parseFloat(amountStr) || 0;
 
@@ -249,7 +302,7 @@ function App() {
       updates.paymentStatus = "Non Payer / لم يدفع بعد";
       if (newStatus.includes("Payer")) {
         const sessionPrice = (student.tarif || 80) / maxSessions;
-        alert(`Paiement enregistré. Reste à payer: ${((student.totalSessionsCount || 0) - finalPaidCount) * sessionPrice} DT`);
+        customAlert("Paiement Enregistré", `Le paiement a été pris en compte. Reste à payer: ${((student.totalSessionsCount || 0) - finalPaidCount) * sessionPrice} DT`);
       }
     }
 
@@ -343,12 +396,13 @@ function App() {
   };
 
   const handleResetAll = async () => {
-    if (window.confirm('ATTENTION: Cette action supprimera DÉFINITIVEMENT tous les étudiants et tout l\'historique des semaines. Êtes-vous sûr ?')) {
+    const confirmed = await customConfirm("Réinitialisation Totale", "ATTENTION: Cette action supprimera DÉFINITIVEMENT tous les étudiants et tout l'historique des semaines. Êtes-vous sûr ?");
+    if (confirmed) {
       try {
-        await axios.delete('https://taher-app.vercel.app/api/system/reset-all');
+        await axios.delete('http://localhost:5000/api/system/reset-all');
         fetchStudents();
         fetchWeeks();
-        alert('Toutes les données ont été supprimées.');
+        customAlert("Succès", "Toutes les données ont été supprimées.");
       } catch (err) {
         console.error('Error resetting system:', err);
       }
@@ -374,7 +428,8 @@ function App() {
   };
 
   const handleDeleteStudent = async (id) => {
-    if (window.confirm('Voulez-vous vraiment supprimer ce dossier ?')) {
+    const confirmed = await customConfirm("Suppression", "Voulez-vous vraiment supprimer ce dossier ? Cette action est irréversible.");
+    if (confirmed) {
       try {
         await axios.delete(`${API_URL}/${id}`);
         fetchStudents();
@@ -433,6 +488,8 @@ function App() {
                 setIsHistoryModalOpen(true);
               }}
               onToggleCompensated={handleToggleCompensated}
+              customAlert={customAlert}
+              customConfirm={customConfirm}
             />
           )}
         </div>
@@ -454,6 +511,16 @@ function App() {
           onToggleMonthlyPayment={handleToggleMonthlyPayment}
         />
       )}
+
+      <NotificationModal 
+        isOpen={notification.isOpen}
+        onClose={() => setNotification({ ...notification, isOpen: false })}
+        title={notification.title}
+        message={notification.message}
+        type={notification.type}
+        placeholder={notification.placeholder}
+        onConfirm={notification.onConfirm}
+      />
     </div>
   );
 }

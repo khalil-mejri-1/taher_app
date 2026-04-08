@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { History, Edit2, Archive, Trash2, CheckCircle, RotateCcw, Loader2 } from 'lucide-react';
 import './AttendanceTable.css';
 
@@ -21,7 +21,9 @@ const AttendanceTable = ({
   onResetAll,
   onUpdatePayment,
   onUpdateNotes,
-  onViewHistory
+  onViewHistory,
+  customAlert,
+  customConfirm
 }) => {
   const isSundayOnly = (p) => {
     if (!p) return false;
@@ -31,7 +33,15 @@ const AttendanceTable = ({
            !p.samedi?.matin && !p.samedi?.amidi;
   };
 
-  const [finishedSessions, setFinishedSessions] = useState([]);
+  const [finishedSessions, setFinishedSessions] = useState(() => {
+    const saved = localStorage.getItem('finishedSessions');
+    return saved ? JSON.parse(saved) : [];
+  });
+  
+  useEffect(() => {
+    localStorage.setItem('finishedSessions', JSON.stringify(finishedSessions));
+  }, [finishedSessions]);
+
   const [loadingCheck, setLoadingCheck] = useState(null); // { studentId, sessionKey }
   const [isWeeksHistoryModalOpen, setIsWeeksHistoryModalOpen] = useState(false);
   const [sessionModal, setSessionModal] = useState(null); // { key, label, day }
@@ -184,12 +194,13 @@ const AttendanceTable = ({
   };
 
   const handleNewWeekClick = async () => {
-    const confirmed = window.confirm("Voulez-vous enregistrer cette semaine et passer à la suivante ? Toutes les coches de présence seront réinitialisées.");
+    const confirmed = await customConfirm("Nouvelle Semaine", "Voulez-vous enregistrer cette semaine et passer à la suivante ? Toutes les coches de présence seront réinitialisées.");
     if (confirmed) {
       const success = await onNewWeek(finishedSessions);
       if (success) {
         setFinishedSessions([]);
-        alert("Nouvelle semaine démarrée !");
+        localStorage.removeItem('finishedSessions');
+        customAlert("Succès", "Nouvelle semaine démarrée !");
       }
     }
   };

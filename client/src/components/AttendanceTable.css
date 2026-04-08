@@ -143,10 +143,21 @@ th {
   letter-spacing: 0.5px;
 }
 
-.th-mardi { background-color: #fff7ed !important; }
-.th-mercredi { background-color: #f0fdf4 !important; }
-.th-samedi { background-color: #eff6ff !important; }
-.th-dimanche { background-color: #faf5ff !important; }
+.th-mardi {
+  background-color: #fff7ed !important;
+}
+
+.th-mercredi {
+  background-color: #f0fdf4 !important;
+}
+
+.th-samedi {
+  background-color: #eff6ff !important;
+}
+
+.th-dimanche {
+  background-color: #faf5ff !important;
+}
 
 .sub-header th {
   padding: 0.8rem 0.5rem;
@@ -173,9 +184,9 @@ th {
   background: #10b981;
   color: white;
   border: none;
-  padding: 6px 14px;
+  padding: 4px 7px;
   border-radius: 8px;
-  font-size: 0.72rem;
+  font-size: 0.70rem;
   font-weight: 800;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -189,8 +200,10 @@ th {
 }
 
 .btn-term.finished {
-  background: #10b981;
-  opacity: 1;
+  background: #94a3b8;
+  opacity: 0.8;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
 .cycle-dot.attended {
@@ -202,8 +215,10 @@ th {
 }
 
 tbody tr {
-  border-bottom: 12px solid white; /* Spacing between rows */
-  background: #fff5f5; /* Light reddish background as requested */
+  border-bottom: 12px solid white;
+  /* Spacing between rows */
+  background: #fff5f5;
+  /* Light reddish background as requested */
 }
 
 tbody td {
@@ -222,7 +237,7 @@ tbody td {
   width: 36px;
   height: 36px;
   border-radius: 10px;
-  display: flex;
+  display: none;
   align-items: center;
   justify-content: center;
   font-weight: 800;
@@ -246,14 +261,22 @@ tbody td {
   align-items: center;
   justify-content: center;
   border: 2px solid white;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
   animation: pulse 1.5s infinite;
 }
 
 @keyframes pulse {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.2); }
-  100% { transform: scale(1); }
+  0% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.2);
+  }
+
+  100% {
+    transform: scale(1);
+  }
 }
 
 .student-details {
@@ -275,7 +298,7 @@ tbody td {
 .attendance-check {
   width: 28px;
   height: 28px;
-  border: 2px solid #cbd5e1;
+  border: 2px solid #959596;
   border-radius: 10px;
   margin: 0 auto;
   cursor: pointer;
@@ -315,13 +338,18 @@ tbody td {
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .attendance-check.disabled {
   background: #f1f5f9;
-  border-color: #e2e8f0;
+  border-color: #ff1e00;
   cursor: not-allowed;
   opacity: 0.5;
   position: relative;
@@ -329,7 +357,7 @@ tbody td {
 
 .attendance-check.disabled::after {
   content: '✕';
-  color: #94a3b8;
+  color: #f70000;
   position: absolute;
   top: 50%;
   left: 50%;
@@ -421,10 +449,21 @@ tbody td {
   transform: scale(1.2);
 }
 
-.icon-history { color: #3b82f6; }
-.icon-edit { color: #8b5cf6; }
-.icon-archive { color: #f59e0b; }
-.icon-delete { color: #ef4444; }
+.icon-history {
+  color: #3b82f6;
+}
+
+.icon-edit {
+  color: #8b5cf6;
+}
+
+.icon-archive {
+  color: #f59e0b;
+}
+
+.icon-delete {
+  color: #ef4444;
+}
 
 /* Modal Styles */
 .modal-overlay {
@@ -555,6 +594,7 @@ tbody td {
   transition: background 0.2s, color 0.2s;
   user-select: none;
 }
+
 .session-label-btn:hover {
   background: #e0f2fe;
   color: #0369a1;
@@ -570,7 +610,7 @@ tbody td {
   max-height: 80vh;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.18);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.18);
   overflow: hidden;
   animation: slideUp 0.25s ease;
 }
@@ -591,14 +631,14 @@ tbody td {
 }
 
 .session-badge {
-  background: rgba(255,255,255,0.15);
+  background: rgba(255, 255, 255, 0.15);
   color: #fff;
   font-weight: 800;
   font-size: 0.8rem;
   padding: 6px 12px;
   border-radius: 8px;
   letter-spacing: 1px;
-  border: 1px solid rgba(255,255,255,0.25);
+  border: 1px solid rgba(255, 255, 255, 0.25);
 }
 
 .session-students-title h3 {
@@ -632,6 +672,7 @@ tbody td {
   border: 1px solid #e2e8f0;
   transition: background 0.15s;
 }
+
 .session-student-item:hover {
   background: #f1f5f9;
 }
@@ -663,10 +704,12 @@ tbody td {
   display: flex;
   flex-direction: column;
 }
+
 .session-student-info strong {
   font-size: 0.9rem;
   color: #1e293b;
 }
+
 .session-student-info span {
   font-size: 0.78rem;
   color: #64748b;
@@ -679,10 +722,12 @@ tbody td {
   border-radius: 20px;
   letter-spacing: 0.5px;
 }
+
 .session-student-status.payer {
   background: #dcfce7;
   color: #16a34a;
 }
+
 .session-student-status.non-payer {
   background: #fee2e2;
   color: #dc2626;
@@ -692,9 +737,9 @@ tbody td {
   display: flex;
   align-items: center;
   gap: 6px;
-  background: rgba(255,255,255,0.15);
+  background: rgba(255, 255, 255, 0.15);
   color: #fff;
-  border: 1px solid rgba(255,255,255,0.35);
+  border: 1px solid rgba(255, 255, 255, 0.35);
   border-radius: 8px;
   padding: 7px 14px;
   font-size: 0.8rem;
@@ -703,6 +748,7 @@ tbody td {
   letter-spacing: 0.4px;
   transition: background 0.2s;
 }
+
 .btn-print-appel:hover {
-  background: rgba(255,255,255,0.28);
+  background: rgba(255, 255, 255, 0.28);
 }
