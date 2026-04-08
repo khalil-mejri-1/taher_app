@@ -9,7 +9,7 @@ import FinancePage from './components/FinancePage';
 import NotificationModal from './components/NotificationModal';
 import './index.css';
 
-const API_URL = 'http://localhost:5000/api/students';
+const API_URL = 'https://taher-app.vercel.app/api/students';
 
 function App() {
   const [students, setStudents] = useState([]);
@@ -26,7 +26,7 @@ function App() {
     type: 'alert',
     title: '',
     message: '',
-    onConfirm: () => {},
+    onConfirm: () => { },
     inputValue: '',
     placeholder: ''
   });
@@ -37,7 +37,7 @@ function App() {
       type: 'alert',
       title,
       message,
-      onConfirm: () => {}
+      onConfirm: () => { }
     });
   };
 
@@ -81,7 +81,7 @@ function App() {
 
   const fetchWeeks = async () => {
     try {
-      const { data } = await axios.get('http://localhost:5000/api/weeks');
+      const { data } = await axios.get('https://taher-app.vercel.app/api/weeks');
       setWeeks(data);
     } catch (err) {
       console.error('Error fetching weeks:', err);
@@ -190,7 +190,7 @@ function App() {
 
   const handleNewWeek = async (finishedSessions) => {
     try {
-      await axios.post('http://localhost:5000/api/weeks/save-and-reset', {
+      await axios.post('https://taher-app.vercel.app/api/weeks/save-and-reset', {
         startDate: currentWeekDate,
         finishedSessions: finishedSessions
       });
@@ -399,7 +399,7 @@ function App() {
     const confirmed = await customConfirm("Réinitialisation Totale", "ATTENTION: Cette action supprimera DÉFINITIVEMENT tous les étudiants et tout l'historique des semaines. Êtes-vous sûr ?");
     if (confirmed) {
       try {
-        await axios.delete('http://localhost:5000/api/system/reset-all');
+        await axios.delete('https://taher-app.vercel.app/api/system/reset-all');
         fetchStudents();
         fetchWeeks();
         customAlert("Succès", "Toutes les données ont été supprimées.");
@@ -512,7 +512,7 @@ function App() {
         />
       )}
 
-      <NotificationModal 
+      <NotificationModal
         isOpen={notification.isOpen}
         onClose={() => setNotification({ ...notification, isOpen: false })}
         title={notification.title}
