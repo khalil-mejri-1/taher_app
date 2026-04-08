@@ -206,6 +206,15 @@ th {
   pointer-events: none;
 }
 
+.btn-term.working {
+  background: #3b82f6;
+  cursor: wait;
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
 .cycle-dot.attended {
   background: #10b981;
 }
@@ -598,6 +607,15 @@ tbody td {
 .session-label-btn:hover {
   background: #e0f2fe;
   color: #0369a1;
+}
+
+/* --- Session Count Label --- */
+.session-count-label {
+  font-size: 0.65rem;
+  color: #94a3b8;
+  font-weight: 600;
+  margin-top: -6px;
+  margin-bottom: 2px;
 }
 
 /* --- Session Students Modal --- */

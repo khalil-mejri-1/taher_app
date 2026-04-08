@@ -22,6 +22,8 @@ const AttendanceTable = ({
   onUpdatePayment,
   onUpdateNotes,
   onViewHistory,
+  finishedSessions,
+  setFinishedSessions,
   customAlert,
   customConfirm
 }) => {
@@ -33,16 +35,9 @@ const AttendanceTable = ({
            !p.samedi?.matin && !p.samedi?.amidi;
   };
 
-  const [finishedSessions, setFinishedSessions] = useState(() => {
-    const saved = localStorage.getItem('finishedSessions');
-    return saved ? JSON.parse(saved) : [];
-  });
-  
-  useEffect(() => {
-    localStorage.setItem('finishedSessions', JSON.stringify(finishedSessions));
-  }, [finishedSessions]);
 
   const [loadingCheck, setLoadingCheck] = useState(null); // { studentId, sessionKey }
+  const [loadingSession, setLoadingSession] = useState(null); // sessionKey
   const [isWeeksHistoryModalOpen, setIsWeeksHistoryModalOpen] = useState(false);
   const [sessionModal, setSessionModal] = useState(null); // { key, label, day }
 
@@ -168,10 +163,11 @@ const AttendanceTable = ({
     return newDate;
   };
 
-  const mardiDate = currentWeekDate;
-  const mercrediDate = getWeekDay(currentWeekDate, 1);
-  const samediDate = getWeekDay(currentWeekDate, 4);
-  const dimancheDate = getWeekDay(currentWeekDate, 5);
+  const baseWeekDate = selectedWeekData ? new Date(selectedWeekData.startDate) : currentWeekDate;
+  const mardiDate = baseWeekDate;
+  const mercrediDate = getWeekDay(baseWeekDate, 1);
+  const samediDate = getWeekDay(baseWeekDate, 4);
+  const dimancheDate = getWeekDay(baseWeekDate, 5);
 
   const isPresent = (student, sessionKey) => {
     if (selectedWeekData) {
@@ -182,10 +178,15 @@ const AttendanceTable = ({
   };
 
   const handleFinish = async (sessionKey) => {
-    if (finishedSessions.includes(sessionKey)) return;
-    const success = await onFinishSession(sessionKey);
-    if (success) {
-      setFinishedSessions(prev => [...prev, sessionKey]);
+    if (finishedSessions.includes(sessionKey) || loadingSession) return;
+    setLoadingSession(sessionKey);
+    try {
+      const success = await onFinishSession(sessionKey);
+      if (success) {
+        setFinishedSessions(prev => [...prev, sessionKey]);
+      }
+    } finally {
+      setLoadingSession(null);
     }
   };
 
@@ -257,12 +258,90 @@ const AttendanceTable = ({
               <th rowSpan="2">ACTIONS</th>
             </tr>
             <tr className="sub-header">
-              <th className="th-mardi"><div className="session-header"><span className="session-label-btn" onClick={() => openSessionModal('mardi_matin', 'MATIN', 'MARDI')}>MATIN</span><button className={`btn-term ${isSessionFinished('mardi_matin') ? 'finished' : ''}`} onClick={() => handleFinish('mardi_matin')} disabled={isSessionFinished('mardi_matin') || selectedWeekData}><CheckCircle size={14} /> {isSessionFinished('mardi_matin') ? 'TERMINE' : 'TERMINER'}</button></div></th>
-              <th className="th-mercredi"><div className="session-header"><span className="session-label-btn" onClick={() => openSessionModal('mercredi_matin', 'MATIN', 'MERCREDI')}>MATIN</span><button className={`btn-term ${isSessionFinished('mercredi_matin') ? 'finished' : ''}`} onClick={() => handleFinish('mercredi_matin')} disabled={isSessionFinished('mercredi_matin') || selectedWeekData}><CheckCircle size={14} /> {isSessionFinished('mercredi_matin') ? 'TERMINE' : 'TERMINER'}</button></div></th>
-              <th className="th-mercredi"><div className="session-header"><span className="session-label-btn" onClick={() => openSessionModal('mercredi_amidi', 'A.MIDI', 'MERCREDI')}>A.MIDI</span><button className={`btn-term ${isSessionFinished('mercredi_amidi') ? 'finished' : ''}`} onClick={() => handleFinish('mercredi_amidi')} disabled={isSessionFinished('mercredi_amidi') || selectedWeekData}><CheckCircle size={14} /> {isSessionFinished('mercredi_amidi') ? 'TERMINE' : 'TERMINER'}</button></div></th>
-              <th className="th-samedi"><div className="session-header"><span className="session-label-btn" onClick={() => openSessionModal('samedi_matin', 'MATIN', 'SAMEDI')}>MATIN</span><button className={`btn-term ${isSessionFinished('samedi_matin') ? 'finished' : ''}`} onClick={() => handleFinish('samedi_matin')} disabled={isSessionFinished('samedi_matin') || selectedWeekData}><CheckCircle size={14} /> {isSessionFinished('samedi_matin') ? 'TERMINE' : 'TERMINER'}</button></div></th>
-              <th className="th-samedi"><div className="session-header"><span className="session-label-btn" onClick={() => openSessionModal('samedi_amidi', 'A.MIDI', 'SAMEDI')}>A.MIDI</span><button className={`btn-term ${isSessionFinished('samedi_amidi') ? 'finished' : ''}`} onClick={() => handleFinish('samedi_amidi')} disabled={isSessionFinished('samedi_amidi') || selectedWeekData}><CheckCircle size={14} /> {isSessionFinished('samedi_amidi') ? 'TERMINE' : 'TERMINER'}</button></div></th>
-              <th className="th-dimanche"><div className="session-header"><span className="session-label-btn" onClick={() => openSessionModal('dimanche_unique', 'UNIQUE', 'DIMANCHE')}>UNIQUE</span><button className={`btn-term ${isSessionFinished('dimanche_unique') ? 'finished' : ''}`} onClick={() => handleFinish('dimanche_unique')} disabled={isSessionFinished('dimanche_unique') || selectedWeekData}><CheckCircle size={14} /> {isSessionFinished('dimanche_unique') ? 'TERM' : 'TERMINER'}</button></div></th>
+              <th className="th-mardi">
+                <div className="session-header">
+                  <span className="session-label-btn" onClick={() => openSessionModal('mardi_matin', 'MATIN', 'MARDI')}>MATIN</span>
+                  <span className="session-count-label">{getStudentsForSession('mardi_matin').length} élèves</span>
+                  <button
+                    className={`btn-term ${isSessionFinished('mardi_matin') ? 'finished' : ''} ${loadingSession ? 'working' : ''}`}
+                    onClick={() => handleFinish('mardi_matin')}
+                    disabled={isSessionFinished('mardi_matin') || selectedWeekData || !!loadingSession}
+                  >
+                    {loadingSession === 'mardi_matin' ? <Loader2 size={14} className="spin" /> : <CheckCircle size={14} />}
+                    {isSessionFinished('mardi_matin') ? 'TERMINE' : 'TERMINER'}
+                  </button>
+                </div>
+              </th>
+              <th className="th-mercredi">
+                <div className="session-header">
+                  <span className="session-label-btn" onClick={() => openSessionModal('mercredi_matin', 'MATIN', 'MERCREDI')}>MATIN</span>
+                  <span className="session-count-label">{getStudentsForSession('mercredi_matin').length} élèves</span>
+                  <button
+                    className={`btn-term ${isSessionFinished('mercredi_matin') ? 'finished' : ''} ${loadingSession ? 'working' : ''}`}
+                    onClick={() => handleFinish('mercredi_matin')}
+                    disabled={isSessionFinished('mercredi_matin') || selectedWeekData || !!loadingSession}
+                  >
+                    {loadingSession === 'mercredi_matin' ? <Loader2 size={14} className="spin" /> : <CheckCircle size={14} />}
+                    {isSessionFinished('mercredi_matin') ? 'TERMINE' : 'TERMINER'}
+                  </button>
+                </div>
+              </th>
+              <th className="th-mercredi">
+                <div className="session-header">
+                  <span className="session-label-btn" onClick={() => openSessionModal('mercredi_amidi', 'A.MIDI', 'MERCREDI')}>A.MIDI</span>
+                  <span className="session-count-label">{getStudentsForSession('mercredi_amidi').length} élèves</span>
+                  <button
+                    className={`btn-term ${isSessionFinished('mercredi_amidi') ? 'finished' : ''} ${loadingSession ? 'working' : ''}`}
+                    onClick={() => handleFinish('mercredi_amidi')}
+                    disabled={isSessionFinished('mercredi_amidi') || selectedWeekData || !!loadingSession}
+                  >
+                    {loadingSession === 'mercredi_amidi' ? <Loader2 size={14} className="spin" /> : <CheckCircle size={14} />}
+                    {isSessionFinished('mercredi_amidi') ? 'TERMINE' : 'TERMINER'}
+                  </button>
+                </div>
+              </th>
+              <th className="th-samedi">
+                <div className="session-header">
+                  <span className="session-label-btn" onClick={() => openSessionModal('samedi_matin', 'MATIN', 'SAMEDI')}>MATIN</span>
+                  <span className="session-count-label">{getStudentsForSession('samedi_matin').length} élèves</span>
+                  <button
+                    className={`btn-term ${isSessionFinished('samedi_matin') ? 'finished' : ''} ${loadingSession ? 'working' : ''}`}
+                    onClick={() => handleFinish('samedi_matin')}
+                    disabled={isSessionFinished('samedi_matin') || selectedWeekData || !!loadingSession}
+                  >
+                    {loadingSession === 'samedi_matin' ? <Loader2 size={14} className="spin" /> : <CheckCircle size={14} />}
+                    {isSessionFinished('samedi_matin') ? 'TERMINE' : 'TERMINER'}
+                  </button>
+                </div>
+              </th>
+              <th className="th-samedi">
+                <div className="session-header">
+                  <span className="session-label-btn" onClick={() => openSessionModal('samedi_amidi', 'A.MIDI', 'SAMEDI')}>A.MIDI</span>
+                  <span className="session-count-label">{getStudentsForSession('samedi_amidi').length} élèves</span>
+                  <button
+                    className={`btn-term ${isSessionFinished('samedi_amidi') ? 'finished' : ''} ${loadingSession ? 'working' : ''}`}
+                    onClick={() => handleFinish('samedi_amidi')}
+                    disabled={isSessionFinished('samedi_amidi') || selectedWeekData || !!loadingSession}
+                  >
+                    {loadingSession === 'samedi_amidi' ? <Loader2 size={14} className="spin" /> : <CheckCircle size={14} />}
+                    {isSessionFinished('samedi_amidi') ? 'TERMINE' : 'TERMINER'}
+                  </button>
+                </div>
+              </th>
+              <th className="th-dimanche">
+                <div className="session-header">
+                  <span className="session-label-btn" onClick={() => openSessionModal('dimanche_unique', 'UNIQUE', 'DIMANCHE')}>UNIQUE</span>
+                  <span className="session-count-label">{getStudentsForSession('dimanche_unique').length} élèves</span>
+                  <button
+                    className={`btn-term ${isSessionFinished('dimanche_unique') ? 'finished' : ''} ${loadingSession ? 'working' : ''}`}
+                    onClick={() => handleFinish('dimanche_unique')}
+                    disabled={isSessionFinished('dimanche_unique') || selectedWeekData || !!loadingSession}
+                  >
+                    {loadingSession === 'dimanche_unique' ? <Loader2 size={14} className="spin" /> : <CheckCircle size={14} />}
+                    {(isSessionFinished('dimanche_unique') || loadingSession === 'dimanche_unique') ? 'TERMINE' : 'TERMINER'}
+                  </button>
+                </div>
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -360,20 +439,34 @@ const AttendanceTable = ({
                       const tarif = student.tarif || 80;
                       const debtNodes = [];
 
+                      let hasPartialDebt = false;
+                      let actualRemainder = 0;
+
                       if (student.paymentStatus === "Payer Partiellement / دفع جزئي") {
                         const moneyReceivedTotal = student.totalMoneyPaid || 0;
-                        const actualRemainder = (moneyReceivedTotal % tarif === 0 && moneyReceivedTotal > 0) ? 0 : (tarif - (moneyReceivedTotal % tarif));
+                        actualRemainder = (moneyReceivedTotal % tarif === 0 && moneyReceivedTotal > 0) ? 0 : (tarif - (moneyReceivedTotal % tarif));
                         if (actualRemainder > 0 && actualRemainder < tarif) {
-                          debtNodes.push(
-                            <div key="partial" className="payment-warning-container partial">
-                              <span className="debt-info">Reste: {actualRemainder} DT</span>
-                            </div>
-                          );
+                          hasPartialDebt = true;
                         }
                       }
 
-                      if (totalCount > paidCount) {
-                        const unpaidSessions = totalCount - paidCount;
+                      const hasUnpaidSessions = totalCount > paidCount;
+                      const unpaidSessions = totalCount - paidCount;
+
+                      if (hasPartialDebt && hasUnpaidSessions) {
+                        debtNodes.push(
+                          <div key="combined" className="payment-warning-container partial">
+                            <span className="payment-warning">{unpaidSessions} séances sans paiement !</span>
+                            <span className="debt-info">Reste: {actualRemainder} DT</span>
+                          </div>
+                        );
+                      } else if (hasPartialDebt) {
+                        debtNodes.push(
+                          <div key="partial" className="payment-warning-container partial">
+                            <span className="debt-info">Reste: {actualRemainder} DT</span>
+                          </div>
+                        );
+                      } else if (hasUnpaidSessions) {
                         debtNodes.push(
                           <div key="sessions" className="payment-warning-container">
                             <span className="payment-warning">{unpaidSessions} séances sans paiement !</span>

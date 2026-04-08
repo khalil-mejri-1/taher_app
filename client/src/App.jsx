@@ -9,7 +9,9 @@ import FinancePage from './components/FinancePage';
 import NotificationModal from './components/NotificationModal';
 import './index.css';
 
-const API_URL = 'https://taher-app.vercel.app/api/students';
+const BASE_URL = 'https://taher-app.vercel.app';
+// const BASE_URL = 'http://localhost:5000';
+const API_URL = `${BASE_URL}/api/students`;
 
 function App() {
   const [students, setStudents] = useState([]);
@@ -30,6 +32,15 @@ function App() {
     inputValue: '',
     placeholder: ''
   });
+
+  const [finishedSessions, setFinishedSessions] = useState(() => {
+    const saved = localStorage.getItem('finishedSessions');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('finishedSessions', JSON.stringify(finishedSessions));
+  }, [finishedSessions]);
 
   const customAlert = (title, message) => {
     setNotification({
@@ -81,7 +92,7 @@ function App() {
 
   const fetchWeeks = async () => {
     try {
-      const { data } = await axios.get('https://taher-app.vercel.app/api/weeks');
+      const { data } = await axios.get(`${BASE_URL}/api/weeks`);
       setWeeks(data);
     } catch (err) {
       console.error('Error fetching weeks:', err);
@@ -190,7 +201,7 @@ function App() {
 
   const handleNewWeek = async (finishedSessions) => {
     try {
-      await axios.post('https://taher-app.vercel.app/api/weeks/save-and-reset', {
+      await axios.post(`${BASE_URL}/api/weeks/save-and-reset`, {
         startDate: currentWeekDate,
         finishedSessions: finishedSessions
       });
@@ -395,11 +406,27 @@ function App() {
     }
   };
 
+  const handleResetSessions = async () => {
+    const confirmed = await customConfirm("Réinitialisation des Sessions", "Voulez-vous vraiment redémarrer toutes les sessions à zéro pour tous les étudiants ?");
+    if (confirmed) {
+      try {
+        await axios.post(`${BASE_URL}/api/system/reset-sessions`);
+        setFinishedSessions([]);
+        localStorage.removeItem('finishedSessions');
+        fetchStudents();
+        fetchWeeks();
+        customAlert("Succès", "Toutes les sessions ont été réinitialisées.");
+      } catch (err) {
+        console.error('Error resetting sessions:', err);
+      }
+    }
+  };
+
   const handleResetAll = async () => {
     const confirmed = await customConfirm("Réinitialisation Totale", "ATTENTION: Cette action supprimera DÉFINITIVEMENT tous les étudiants et tout l'historique des semaines. Êtes-vous sûr ?");
     if (confirmed) {
       try {
-        await axios.delete('https://taher-app.vercel.app/api/system/reset-all');
+        await axios.delete(`${BASE_URL}/api/system/reset-all`);
         fetchStudents();
         fetchWeeks();
         customAlert("Succès", "Toutes les données ont été supprimées.");
@@ -459,7 +486,7 @@ function App() {
     <div className="app-container">
       <Sidebar activeView={activeView} onViewChange={setActiveView} />
       <main className="main-content">
-        <Navbar onAddStudent={handleOpenModal} />
+        <Navbar onAddStudent={handleOpenModal} onResetSessions={handleResetSessions} />
         <div className="content-body">
           {activeView === 'finances' ? (
             <FinancePage students={students} />
@@ -474,6 +501,8 @@ function App() {
               onMarkAttendance={handleMarkAttendance}
               onFinishSession={handleFinishSession}
               onNewWeek={handleNewWeek}
+              finishedSessions={finishedSessions}
+              setFinishedSessions={setFinishedSessions}
               currentWeekDate={currentWeekDate}
               onDateChange={setCurrentWeekDate}
               weeksHistory={weeks}

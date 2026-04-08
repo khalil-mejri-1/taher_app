@@ -2,7 +2,7 @@ import React from 'react';
 import { Search, RotateCcw, Trash2, Plus } from 'lucide-react';
 import './Navbar.css';
 
-const Navbar = ({ onAddStudent }) => {
+const Navbar = ({ onAddStudent, onResetSessions }) => {
   return (
     <div className="navbar">
       <div className="navbar-left">
@@ -16,7 +16,7 @@ const Navbar = ({ onAddStudent }) => {
           <input type="text" placeholder="Rechercher par nom..." />
         </div>
 
-        <button className="btn btn-orange">
+        <button className="btn btn-orange" onClick={onResetSessions}>
           <RotateCcw size={18} />
           <span>تعطيل الحصص</span>
         </button>
