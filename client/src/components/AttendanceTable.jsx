@@ -23,6 +23,14 @@ const AttendanceTable = ({
   onUpdateNotes,
   onViewHistory
 }) => {
+  const isSundayOnly = (p) => {
+    if (!p) return false;
+    return p.dimanche?.unique && 
+           !p.mardi?.matin && 
+           !p.mercredi?.matin && !p.mercredi?.amidi &&
+           !p.samedi?.matin && !p.samedi?.amidi;
+  };
+
   const [finishedSessions, setFinishedSessions] = useState([]);
   const [isWeeksHistoryModalOpen, setIsWeeksHistoryModalOpen] = useState(false);
   const [sessionModal, setSessionModal] = useState(null); // { key, label, day }
@@ -222,7 +230,7 @@ const AttendanceTable = ({
               <th className="th-mercredi" colSpan="2">{formatDate(mercrediDate)}<br /> MERCREDI</th>
               <th className="th-samedi" colSpan="2">{formatDate(samediDate)}<br /> SAMEDI</th>
               <th className="th-dimanche">{formatDate(dimancheDate)}<br /> DIMANCHE</th>
-              <th rowSpan="2">CYCLE (8 SÉANCES)</th>
+              <th rowSpan="2">CYCLE (SESSION)</th>
               <th rowSpan="2">RÈGLEMENT</th>
               <th rowSpan="2">ANNOTATIONS</th>
               <th rowSpan="2">ACTIONS</th>
@@ -249,7 +257,7 @@ const AttendanceTable = ({
                     </div>
                     <div className="student-details">
                       <strong>{student.name}</strong>
-                      <span>{student.tarif} DT / 8 Séances</span>
+                      <span>{student.tarif} DT / {isSundayOnly(student.planning) ? '5' : '8'} Séances</span>
                     </div>
                   </div>
                 </td>
@@ -261,19 +269,24 @@ const AttendanceTable = ({
                 <td><div className={`attendance-check ${!student.planning?.dimanche?.unique ? 'disabled' : ''} ${isPresent(student, 'dimanche_unique') ? 'present' : ''}`} onClick={() => !isArchivesView && !selectedWeekData && student.planning?.dimanche?.unique && onMarkAttendance(student._id, 'dimanche_unique')}></div></td>
                 <td>
                   <div className="cycle-tracker">
-                    {[0, 1, 2, 3, 4, 5, 6, 7].map(i => {
+                    {(() => {
+                      const maxS = isSundayOnly(student.planning) ? 5 : 8;
                       const totalSessions = student.totalSessionsCount || 0;
-                      const sessionsInCurrentCycle = totalSessions % 8 || (totalSessions > 0 ? 8 : 0);
-                      let statusClass = '';
-                      if (i < sessionsInCurrentCycle) {
-                        const historyIndex = (student.cycleHistory?.length || 0) - sessionsInCurrentCycle + i;
-                        const session = student.cycleHistory?.[historyIndex];
-                        if (session) {
-                          statusClass = session.type === 'present' ? 'attended' : 'missed';
+                      const sessionsInCurrentCycle = totalSessions % maxS || (totalSessions > 0 ? maxS : 0);
+                      const dots = [];
+                      for (let i = 0; i < maxS; i++) {
+                        let statusClass = '';
+                        if (i < sessionsInCurrentCycle) {
+                          const historyIndex = (student.cycleHistory?.length || 0) - sessionsInCurrentCycle + i;
+                          const session = student.cycleHistory?.[historyIndex];
+                          if (session) {
+                            statusClass = session.type === 'present' ? 'attended' : 'missed';
+                          }
                         }
+                        dots.push(<span key={i} className={`cycle-dot ${statusClass}`}></span>);
                       }
-                      return <span key={i} className={`cycle-dot ${statusClass}`}></span>;
-                    })}
+                      return dots;
+                    })()}
                   </div>
                 </td>
                 <td>

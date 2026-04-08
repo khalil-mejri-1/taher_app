@@ -8,7 +8,7 @@ import StudentHistoryModal from './components/StudentHistoryModal';
 import FinancePage from './components/FinancePage';
 import './index.css';
 
-const API_URL = 'http://localhost:5000/api/students';
+const API_URL = 'https://taher-app.vercel.app/api/students';
 
 function App() {
   const [students, setStudents] = useState([]);
@@ -28,7 +28,7 @@ function App() {
 
   const fetchWeeks = async () => {
     try {
-      const { data } = await axios.get('http://localhost:5000/api/weeks');
+      const { data } = await axios.get('https://taher-app.vercel.app/api/weeks');
       setWeeks(data);
     } catch (err) {
       console.error('Error fetching weeks:', err);
@@ -44,6 +44,14 @@ function App() {
     }
   };
 
+  const isSundayOnly = (p) => {
+    if (!p) return false;
+    return p.dimanche?.unique && 
+           !p.mardi?.matin && 
+           !p.mercredi?.matin && !p.mercredi?.amidi &&
+           !p.samedi?.matin && !p.samedi?.amidi;
+  };
+
   const handleSaveStudent = async (formData) => {
     try {
       const submissionData = { ...formData };
@@ -57,22 +65,21 @@ function App() {
         submissionData.isArchived = false;
       }
 
+      const maxSessions = isSundayOnly(submissionData.planning) ? 5 : 8;
+
       if (submissionData.paymentStatus === "Payer Partiellement / دفع جزئي") {
-        // Treat as "Payer" for sessions (adds 8 or keeps at 8)
-        if (!editingStudent || submissionData.paidSessionsCount < 8) {
-          submissionData.paidSessionsCount = 8;
+        if (!editingStudent || submissionData.paidSessionsCount < maxSessions) {
+          submissionData.paidSessionsCount = maxSessions;
         }
       } else if (submissionData.paymentStatus === "Payer / تم الخلاص") {
-        // For new students or if status just changed to full payer
-        if (!editingStudent || submissionData.paidSessionsCount < 8) {
-          submissionData.paidSessionsCount = 8;
+        if (!editingStudent || submissionData.paidSessionsCount < maxSessions) {
+          submissionData.paidSessionsCount = maxSessions;
           submissionData.totalMoneyPaid = tarif;
           if (!submissionData.paidMonths?.includes(1)) {
             submissionData.paidMonths = [1];
           }
         }
       } else if (submissionData.paymentStatus === "Non Payer / لم يدفع بعد") {
-        // Reset current month payment if status is set to Non Payer
         submissionData.paidSessionsCount = 0;
         submissionData.totalMoneyPaid = 0;
         submissionData.paidMonths = [];
@@ -99,7 +106,7 @@ function App() {
       // Check if student is assigned to this session
       if (student.planning?.[day]?.[sessionType]) {
         const isPresent = student.attendance?.some(a => a.session === sessionKey && a.present);
-        
+
         // Only update if not already in history for this session today
         const newHistoryEntry = {
           session: sessionKey,
@@ -130,16 +137,16 @@ function App() {
 
   const handleNewWeek = async (finishedSessions) => {
     try {
-      await axios.post('http://localhost:5000/api/weeks/save-and-reset', {
+      await axios.post('https://taher-app.vercel.app/api/weeks/save-and-reset', {
         startDate: currentWeekDate,
         finishedSessions: finishedSessions
       });
-      
+
       // Increment date by 7 days
       const nextWeek = new Date(currentWeekDate);
       nextWeek.setDate(nextWeek.getDate() + 7);
       setCurrentWeekDate(nextWeek);
-      
+
       await fetchStudents();
       await fetchWeeks();
       return true;
@@ -159,7 +166,7 @@ function App() {
 
     const existingAttendance = student.attendance || [];
     const index = existingAttendance.findIndex(a => a.session === sessionKey);
-    
+
     let newAttendance = [...existingAttendance];
     let cycleChange = 0;
 
@@ -190,6 +197,7 @@ function App() {
     const student = students.find(s => s._id === studentId);
     if (!student) return;
 
+    const maxSessions = isSundayOnly(student.planning) ? 5 : 8;
     let updates = { paymentStatus: newStatus };
     let finalPaidCount = student.paidSessionsCount || 0;
     let finalMoneyPaid = student.totalMoneyPaid || 0;
@@ -198,38 +206,38 @@ function App() {
       const amountStr = window.prompt("Entrez le montant payé (DT) / أدخل المبلغ المدفوع:");
       if (amountStr === null) return;
       const amount = parseFloat(amountStr) || 0;
-      
+
       finalMoneyPaid += amount;
       updates.totalMoneyPaid = finalMoneyPaid;
-      
-      // Full session credit (8 sessions) even for partial payment
-      finalPaidCount += 8;
+
+      // Full session credit based on student planning
+      finalPaidCount += maxSessions;
       updates.paidSessionsCount = finalPaidCount;
-      
+
     } else if (newStatus === "Non Payer / لم يدفع بعد") {
       // Sync with Historique Modal: Remove current month from paidMonths
-      const currentMonth = Math.floor((student.totalSessionsCount || 0) / 8.01) + 1;
+      const currentMonth = Math.floor((student.totalSessionsCount || 0) / (maxSessions + 0.01)) + 1;
       const existingPaidMonths = student.paidMonths || [];
-      
+
       // Remove the current month specifically
       updates.paidMonths = existingPaidMonths.filter(m => m !== currentMonth);
-      
+
       // Reset session credits to only previously fully paid months
-      const previousMonthsPaidCount = (updates.paidMonths.length) * 8;
+      const previousMonthsPaidCount = (updates.paidMonths.length) * maxSessions;
       updates.paidSessionsCount = Math.min(student.paidSessionsCount, previousMonthsPaidCount);
       updates.totalMoneyPaid = Math.min(student.totalMoneyPaid, (updates.paidMonths.length) * (student.tarif || 80));
 
     } else if (newStatus === "Payer / تم الخلاص" && student.paymentStatus !== newStatus) {
-      // Full payment of 8 sessions (one cycle)
+      // Full payment based on student planning
       const tarif = student.tarif || 80;
       finalMoneyPaid += tarif;
-      finalPaidCount += 8;
-      
+      finalPaidCount += maxSessions;
+
       updates.totalMoneyPaid = finalMoneyPaid;
       updates.paidSessionsCount = finalPaidCount;
 
       // Sync with Historique Modal: Add current month to paidMonths
-      const currentMonth = Math.floor((student.totalSessionsCount || 0) / 8.01) + 1;
+      const currentMonth = Math.floor((student.totalSessionsCount || 0) / (maxSessions + 0.01)) + 1;
       const existingPaidMonths = student.paidMonths || [];
       if (!existingPaidMonths.includes(currentMonth)) {
         updates.paidMonths = [...existingPaidMonths, currentMonth];
@@ -240,7 +248,8 @@ function App() {
     if ((student.totalSessionsCount || 0) > finalPaidCount) {
       updates.paymentStatus = "Non Payer / لم يدفع بعد";
       if (newStatus.includes("Payer")) {
-        alert(`Paiement enregistré. Reste à payer: ${((student.totalSessionsCount || 0) - finalPaidCount) * ((student.tarif || 80) / 8)} DT`);
+        const sessionPrice = (student.tarif || 80) / maxSessions;
+        alert(`Paiement enregistré. Reste à payer: ${((student.totalSessionsCount || 0) - finalPaidCount) * sessionPrice} DT`);
       }
     }
 
@@ -271,7 +280,7 @@ function App() {
       await axios.put(`${API_URL}/${studentId}`, {
         cycleHistory: newCycleHistory
       });
-      
+
       // Update local state for immediate feedback
       setStudents(prev => prev.map(s => s._id === studentId ? { ...s, cycleHistory: newCycleHistory } : s));
       setSelectedStudentHistory(prev => ({ ...prev, cycleHistory: newCycleHistory }));
@@ -284,20 +293,21 @@ function App() {
     const student = students.find(s => s._id === studentId);
     if (!student) return;
 
+    const maxSessions = isSundayOnly(student.planning) ? 5 : 8;
     const currentPaidMonths = student.paidMonths || [];
     let newPaidMonths;
     let paidSessionsChange = 0;
 
     if (currentPaidMonths.includes(monthNumber)) {
       newPaidMonths = currentPaidMonths.filter(m => m !== monthNumber);
-      paidSessionsChange = -8;
+      paidSessionsChange = -maxSessions;
     } else {
       newPaidMonths = [...currentPaidMonths, monthNumber];
-      paidSessionsChange = 8;
+      paidSessionsChange = maxSessions;
     }
 
     const newPaidSessionsCount = Math.max(0, (student.paidSessionsCount || 0) + paidSessionsChange);
-    
+
     // Auto update paymentStatus based on the new balance
     let newPaymentStatus = student.paymentStatus;
     if ((student.totalSessionsCount || 0) > newPaidSessionsCount) {
@@ -312,9 +322,9 @@ function App() {
         paidSessionsCount: newPaidSessionsCount,
         paymentStatus: newPaymentStatus
       };
-      
+
       await axios.put(`${API_URL}/${studentId}`, updates);
-      
+
       // Update local state
       setStudents(prev => prev.map(s => s._id === studentId ? { ...s, ...updates } : s));
       setSelectedStudentHistory(prev => ({ ...prev, ...updates }));
@@ -335,7 +345,7 @@ function App() {
   const handleResetAll = async () => {
     if (window.confirm('ATTENTION: Cette action supprimera DÉFINITIVEMENT tous les étudiants et tout l\'historique des semaines. Êtes-vous sûr ?')) {
       try {
-        await axios.delete('http://localhost:5000/api/system/reset-all');
+        await axios.delete('https://taher-app.vercel.app/api/system/reset-all');
         fetchStudents();
         fetchWeeks();
         alert('Toutes les données ont été supprimées.');
@@ -399,8 +409,8 @@ function App() {
           {activeView === 'finances' ? (
             <FinancePage students={students} />
           ) : (
-            <AttendanceTable 
-              students={filteredStudents} 
+            <AttendanceTable
+              students={filteredStudents}
               isArchivesView={activeView === 'archives'}
               onArchive={handleArchiveStudent}
               onUnarchive={handleUnarchiveStudent}
@@ -428,15 +438,15 @@ function App() {
         </div>
       </main>
 
-      <RegistrationModal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
-        onSubmit={handleSaveStudent} 
+      <RegistrationModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSubmit={handleSaveStudent}
         initialData={editingStudent}
       />
 
       {isHistoryModalOpen && selectedStudentHistory && (
-        <StudentHistoryModal 
+        <StudentHistoryModal
           student={selectedStudentHistory}
           isOpen={isHistoryModalOpen}
           onClose={() => setIsHistoryModalOpen(false)}

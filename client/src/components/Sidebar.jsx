@@ -16,15 +16,14 @@ const Sidebar = ({ activeView, onViewChange }) => {
           <Calendar size={28} color="white" />
         </div>
         <div className="logo-text">
-          <h1>a7la taher kif ya sfax</h1>
-          <p>A9WA MOLA CHARIKA</p>
+          <h1>2C Paton </h1>
         </div>
       </div>
 
       <nav className="nav-menu">
         {menuItems.map((item) => (
-          <div 
-            key={item.id} 
+          <div
+            key={item.id}
             className={`nav-item ${activeView === item.id ? 'active' : ''}`}
             onClick={() => onViewChange(item.id)}
           >

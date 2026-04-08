@@ -8,9 +8,18 @@ const FinancePage = ({ students }) => {
   
   const recettesReelles = students.reduce((sum, s) => sum + (s.totalMoneyPaid || 0), 0);
   
+  const isSundayOnly = (p) => {
+    if (!p) return false;
+    return p.dimanche?.unique && 
+           !p.mardi?.matin && 
+           !p.mercredi?.matin && !p.mercredi?.amidi &&
+           !p.samedi?.matin && !p.samedi?.amidi;
+  };
+
   const montantGlobalPrevu = students.reduce((sum, s) => {
-    // Calculate cycles started: 1-8 = 1 cycle, 9-16 = 2 cycles, etc.
-    const cycles = Math.max(1, Math.ceil((s.totalSessionsCount || 0) / 8));
+    // Calculate cycles started: based on 5 for Sunday-only, 8 otherwise
+    const maxS = isSundayOnly(s.planning) ? 5 : 8;
+    const cycles = Math.max(1, Math.ceil((s.totalSessionsCount || 0) / maxS));
     return sum + (cycles * (s.tarif || 80));
   }, 0);
   
