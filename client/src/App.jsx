@@ -33,6 +33,8 @@ function App() {
     placeholder: ''
   });
 
+  const [lastPartialAmounts, setLastPartialAmounts] = useState({});
+
   const [finishedSessions, setFinishedSessions] = useState(() => {
     const saved = localStorage.getItem('finishedSessions');
     return saved ? JSON.parse(saved) : [];
@@ -68,7 +70,7 @@ function App() {
     });
   };
 
-  const customPrompt = (title, message, placeholder = '') => {
+  const customPrompt = (title, message, placeholder = '', initialValue = '') => {
     return new Promise((resolve) => {
       setNotification({
         isOpen: true,
@@ -76,6 +78,7 @@ function App() {
         title,
         message,
         placeholder,
+        inputValue: initialValue,
         onConfirm: (val) => resolve(val),
         onClose: () => {
           setNotification(prev => ({ ...prev, isOpen: false }));
@@ -267,9 +270,12 @@ function App() {
     let finalMoneyPaid = student.totalMoneyPaid || 0;
 
     if (newStatus === "Payer Partiellement / دفع جزئي") {
-      const amountStr = await customPrompt("Paiement Partiel", "Entrez le montant payé (DT) / أدخل المبلغ المدفوع:", "Ex: 40");
+      const defaultValue = lastPartialAmounts[studentId] || '';
+      const amountStr = await customPrompt("Paiement Partiel", "Entrez le montant payé (DT) / أدخل المبلغ المدفوع:", "Ex: 40", defaultValue.toString());
       if (amountStr === null) return;
       const amount = parseFloat(amountStr) || 0;
+
+      setLastPartialAmounts(prev => ({ ...prev, [studentId]: amount }));
 
       finalMoneyPaid += amount;
       updates.totalMoneyPaid = finalMoneyPaid;
@@ -548,6 +554,7 @@ function App() {
         message={notification.message}
         type={notification.type}
         placeholder={notification.placeholder}
+        inputValue={notification.inputValue}
         onConfirm={notification.onConfirm}
       />
     </div>

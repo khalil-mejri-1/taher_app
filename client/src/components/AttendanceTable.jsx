@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { History, Edit2, Archive, Trash2, CheckCircle, RotateCcw, Loader2 } from 'lucide-react';
+import { History, Edit2, Archive, Trash2, CheckCircle, RotateCcw, Loader2, X } from 'lucide-react';
 import './AttendanceTable.css';
 
 const AttendanceTable = ({
@@ -572,6 +572,26 @@ const AttendanceTable = ({
                       <strong>{s.name}</strong>
                       <span>{s.phone}</span>
                     </div>
+
+                    <div className="session-student-attendance-actions">
+                      <button
+                        className={`btn-attendance present ${isPresent(s, sessionModal.sessionKey) ? 'active' : ''}`}
+                        onClick={() => !isArchivesView && !selectedWeekData && !loadingCheck && !isPresent(s, sessionModal.sessionKey) && handleCheckClick(s._id, sessionModal.sessionKey)}
+                        disabled={loadingCheck?.studentId === s._id || isSessionFinished(sessionModal.sessionKey) || selectedWeekData}
+                      >
+                        <div className="icon-box"></div>
+                        <span>Présent</span>
+                      </button>
+                      <button
+                        className={`btn-attendance absent ${!isPresent(s, sessionModal.sessionKey) ? 'active' : ''}`}
+                        onClick={() => !isArchivesView && !selectedWeekData && !loadingCheck && isPresent(s, sessionModal.sessionKey) && handleCheckClick(s._id, sessionModal.sessionKey)}
+                        disabled={loadingCheck?.studentId === s._id || isSessionFinished(sessionModal.sessionKey) || selectedWeekData}
+                      >
+                        <div className="icon-box">{!isPresent(s, sessionModal.sessionKey) && <X size={14} strokeWidth={3} />}</div>
+                        <span>Absent</span>
+                      </button>
+                    </div>
+
                     <div className={`session-student-status ${s.paymentStatus?.includes('Non') ? 'non-payer' : 'payer'}`}>
                       {s.paymentStatus?.includes('Non') ? 'NON PAYER' : 'PAYER'}
                     </div>

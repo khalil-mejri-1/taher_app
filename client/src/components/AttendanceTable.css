@@ -623,8 +623,7 @@ tbody td {
   background: #fff;
   border-radius: 18px;
   padding: 0;
-  width: 480px;
-  max-width: 95vw;
+  max-width: 700px;
   max-height: 80vh;
   display: flex;
   flex-direction: column;
@@ -769,4 +768,87 @@ tbody td {
 
 .btn-print-appel:hover {
   background: rgba(255, 255, 255, 0.28);
+}
+
+/* --- Session Student Modal Attendance Actions --- */
+.session-student-attendance-actions {
+  display: flex;
+  gap: 16px;
+  margin-right: 16px;
+  align-items: center;
+}
+
+.btn-attendance {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  font-family: inherit;
+  font-weight: 800;
+  opacity: 0.5;
+  transition: all 0.2s ease;
+}
+
+.btn-attendance:hover:not(:disabled) {
+  opacity: 0.8;
+}
+
+.btn-attendance:disabled {
+  cursor: not-allowed;
+  opacity: 0.3 !important;
+}
+
+.btn-attendance.active {
+  opacity: 1;
+}
+
+.btn-attendance .icon-box {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid;
+  transition: all 0.2s;
+}
+
+/* Present Button */
+.btn-attendance.present .icon-box {
+  border-color: #10b981;
+}
+
+.btn-attendance.present.active .icon-box {
+  background: #10b981;
+}
+
+.btn-attendance.present.active .icon-box::after {
+  content: '✓';
+  color: white;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.btn-attendance.present span {
+  color: #3b82f6;
+  font-size: 0.85rem;
+}
+
+/* Absent Button */
+.btn-attendance.absent .icon-box {
+  border-color: #ef4444;
+}
+
+.btn-attendance.absent.active .icon-box {
+  background: #ef4444;
+  color: white;
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.3);
+}
+
+.btn-attendance.absent span {
+  color: #ef4444;
+  font-size: 0.85rem;
 }

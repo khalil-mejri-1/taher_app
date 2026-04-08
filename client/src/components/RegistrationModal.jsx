@@ -119,6 +119,7 @@ const RegistrationModal = ({ isOpen, onClose, onSubmit, initialData }) => {
                 placeholder="Ex: 40"
                 value={formData.totalMoneyPaid}
                 onChange={(e) => setFormData(prev => ({ ...prev, totalMoneyPaid: parseFloat(e.target.value) || 0 }))}
+                onWheel={(e) => e.target.blur()}
                 required
               />
             </div>
