@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { History, Edit2, Archive, Trash2, CheckCircle, RotateCcw, Loader2, X } from 'lucide-react';
 import './AttendanceTable.css';
 
@@ -25,14 +25,15 @@ const AttendanceTable = ({
   finishedSessions,
   setFinishedSessions,
   customAlert,
-  customConfirm
+  customConfirm,
+  isLoading
 }) => {
   const isSundayOnly = (p) => {
     if (!p) return false;
-    return p.dimanche?.unique && 
-           !p.mardi?.matin && 
-           !p.mercredi?.matin && !p.mercredi?.amidi &&
-           !p.samedi?.matin && !p.samedi?.amidi;
+    return p.dimanche?.unique &&
+      !p.mardi?.matin &&
+      !p.mercredi?.matin && !p.mercredi?.amidi &&
+      !p.samedi?.matin && !p.samedi?.amidi;
   };
 
 
@@ -40,6 +41,915 @@ const AttendanceTable = ({
   const [loadingSession, setLoadingSession] = useState(null); // sessionKey
   const [isWeeksHistoryModalOpen, setIsWeeksHistoryModalOpen] = useState(false);
   const [sessionModal, setSessionModal] = useState(null); // { key, label, day }
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState('default');
+  
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 8; // Number of students per page
+
+  const filteredAndSortedStudents = useMemo(() => {
+    const overrideEyaNaes = [
+      [ {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"} ], // 1
+      [ {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"} ], // 2
+      [ {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"} ], // 3
+      [ {d:"25-juin", t:"present"}, {d:"28-juin", t:"present"}, {d:"01-juil.", t:"present"}, {d:"02-juil.", t:"present"}, {d:"08-juil.", t:"present"}, {d:"09-juil.", t:"present"}, {d:"15-juil.", t:"present"}, {d:"16-juil.", t:"present"} ], // 4
+      [ {d:"22-juil.", t:"present"}, {d:"23-juil.", t:"present"}, {d:"29-juil.", t:"present"}, {d:"30-juil.", t:"present"}, {d:"05-août", t:"absent"}, {d:"06-août", t:"absent"}, {d:"12-août", t:"absent"}, {d:"13-août", t:"absent"} ], // 5
+      [ {d:"19-août", t:"absent"}, {d:"20-août", t:"absent"}, {d:"26-août", t:"absent"}, {d:"27-août", t:"absent"}, {d:"02-sept.", t:"absent"}, {d:"03-sept.", t:"absent"}, {d:"09-sept.", t:"present"}, {d:"10-sept.", t:"present"} ], // 6
+      [ {d:"16-sept.", t:"present"}, {d:"17-sept.", t:"present"}, {d:"23-sept.", t:"present"}, {d:"24-sept.", t:"present"}, {d:"30-sept.", t:"present"}, {d:"01-oct.", t:"absent"}, {d:"07-oct.", t:"absent"}, {d:"08-oct.", t:"present"} ], // 7
+      [ {d:"22-nov.", t:"present"}, {d:"22-nov.", t:"present"}, {d:"29-nov.", t:"present"}, {d:"29-nov.", t:"present"}, {d:"06-déc.", t:"absent"}, {d:"06-déc.", t:"absent"}, {d:"13-déc.", t:"present"}, {d:"13-déc.", t:"present"} ], // 8
+      [ {d:"20-déc.", t:"present"}, {d:"20-déc.", t:"present"}, {d:"27-déc.", t:"present"}, {d:"27-déc.", t:"present"}, {d:"03-janv.", t:"present"}, {d:"03-janv.", t:"present"}, {d:"10-janv.", t:"present"}, {d:"10-janv.", t:"present"} ], // 9
+      [ {d:"17-janv.", t:"present"}, {d:"17-janv.", t:"present"}, {d:"31-janv.", t:"present"}, {d:"31-janv.", t:"present"}, {d:"07-févr.", t:"present"}, {d:"07-févr.", t:"present"}, {d:"14-févr.", t:"present"}, {d:"14-févr.", t:"present"} ], // 10
+      [ {d:"21-févr.", t:"present"}, {d:"28-févr.", t:"present"}, {d:"28-févr.", t:"present"}, {d:"07-mars", t:"present"}, {d:"07-mars", t:"present"}, {d:"14-mars", t:"present"}, {d:"14-mars", t:"present"}, {d:"28-mars", t:"absent"} ], // 11
+      [ {d:"28-mars", t:"absent"}, {d:"04-avr.", t:"absent"}, {d:"04-avr.", t:"absent"} ] // 12
+    ];
+
+    const overrideNesrineNafati = [
+      [ {d:"22-juin", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"} ], // 1
+      [ {d:"03-août", t:"present"}, {d:"10-août", t:"present"}, {d:"17-août", t:"absent"}, {d:"24-août", t:"present"}, {d:"31-août", t:"present"} ], // 2
+      [ {d:"07-sept.", t:"present"}, {d:"14-sept.", t:"present"}, {d:"21-sept.", t:"present"}, {d:"28-sept.", t:"present"}, {d:"05-oct.", t:"present"} ], // 3
+      [ {d:"12-oct.", t:"present"}, {d:"26-oct.", t:"present"}, {d:"02-nov.", t:"present"}, {d:"09-nov.", t:"present"}, {d:"16-nov.", t:"present"} ], // 4
+      [ {d:"23-nov.", t:"present"}, {d:"30-nov.", t:"present"}, {d:"07-déc.", t:"present"}, {d:"14-déc.", t:"present"}, {d:"21-déc.", t:"present"} ], // 5
+      [ {d:"04-janv.", t:"present"}, {d:"11-janv.", t:"present"}, {d:"18-janv.", t:"present"}, {d:"25-janv.", t:"present"}, {d:"01-févr.", t:"present"} ], // 6
+      [ {d:"08-févr.", t:"present"}, {d:"15-févr.", t:"present"}, {d:"01-mars", t:"present"}, {d:"15-mars", t:"present"}, {d:"--", t:"present"} ], // 7
+      [ {d:"05-avr.", t:"present"} ] // 8
+    ];
+
+    let result = students.map(s => {
+      let sTemp = { ...s };
+
+      if (sTemp.name?.toUpperCase() === "EYA NAES") {
+        let simulatedHistory = [];
+        overrideEyaNaes.forEach(month => {
+          month.forEach(session => {
+            if (session) simulatedHistory.push({ type: session.t, date: new Date() });
+          });
+        });
+        if (sTemp.cycleHistory && sTemp.cycleHistory.length > 0) {
+          sTemp.cycleHistory.forEach(sess => simulatedHistory.push(sess));
+        }
+        
+        sTemp = { 
+          ...sTemp, 
+          totalSessionsCount: 91 + (sTemp.cycleHistory?.length || 0),
+          simulatedHistory 
+        };
+      } else if (sTemp.name?.toUpperCase() === "NESRINE NAFATI") {
+        let simulatedHistory = [];
+        overrideNesrineNafati.forEach(month => {
+          month.forEach(session => {
+            simulatedHistory.push({ type: session.t, date: new Date() });
+          });
+        });
+        if (sTemp.cycleHistory && sTemp.cycleHistory.length > 0) {
+          sTemp.cycleHistory.forEach(sess => simulatedHistory.push(sess));
+        }
+        
+        // 36 sessions from the manual override
+        sTemp = { 
+          ...sTemp, 
+          totalSessionsCount: 36 + (sTemp.cycleHistory?.length || 0),
+          simulatedHistory 
+        };
+      } else if (sTemp.name?.toUpperCase() === "MALEK KEMEL") {
+        const overrideMalekKemel = [
+          [ {d:"01-févr.", t:"present"}, {d:"08-févr.", t:"present"}, {d:"15-févr.", t:"present"}, {d:"22-févr.", t:"absent"}, {d:"01-mars", t:"present"} ] // 1
+        ];
+        let simulatedHistory = [];
+        overrideMalekKemel.forEach(month => {
+          month.forEach(session => {
+            if (session) simulatedHistory.push({ type: session.t, date: new Date() });
+          });
+        });
+        if (sTemp.cycleHistory && sTemp.cycleHistory.length > 0) {
+          sTemp.cycleHistory.forEach(sess => simulatedHistory.push(sess));
+        }
+        
+        // 5 sessions from the manual override
+        sTemp = { 
+          ...sTemp, 
+          totalSessionsCount: 5 + (sTemp.cycleHistory?.length || 0),
+          simulatedHistory 
+        };
+      } else if (sTemp.name?.toUpperCase() === "YOSRA BEN ALI") {
+        const overrideYosraBenAli = [
+          [ {d:"01-févr.", t:"present"}, {d:"08-févr.", t:"present"}, {d:"15-févr.", t:"present"}, {d:"22-févr.", t:"present"}, {d:"01-mars", t:"present"} ], // M1
+          [ {d:"08-mars", t:"present"}, {d:"15-mars", t:"present"} ] // M2
+        ];
+        let simulatedHistory = [];
+        overrideYosraBenAli.forEach(month => {
+          month.forEach(session => {
+            if (session) simulatedHistory.push({ type: session.t, date: new Date() });
+          });
+        });
+        if (sTemp.cycleHistory && sTemp.cycleHistory.length > 0) {
+          sTemp.cycleHistory.forEach(sess => simulatedHistory.push(sess));
+        }
+        
+        // 7 sessions from the manual override
+        sTemp = { 
+          ...sTemp, 
+          totalSessionsCount: 7 + (sTemp.cycleHistory?.length || 0),
+          simulatedHistory 
+        };
+      } else if (sTemp.name?.toUpperCase() === "IMEN SAFI") {
+        const overrideImenSafi = [
+          [ {d:"01-févr.", t:"present"}, {d:"08-févr.", t:"present"}, {d:"15-févr.", t:"present"}, {d:"22-févr.", t:"present"}, {d:"01-mars", t:"present"} ], // M1
+          [ {d:"05-avr.", t:"present"} ] // M2
+        ];
+        let simulatedHistory = [];
+        overrideImenSafi.forEach(month => {
+          month.forEach(session => {
+            if (session) simulatedHistory.push({ type: session.t, date: new Date() });
+          });
+        });
+        if (sTemp.cycleHistory && sTemp.cycleHistory.length > 0) {
+          sTemp.cycleHistory.forEach(sess => simulatedHistory.push(sess));
+        }
+        
+        // 6 sessions from the manual override
+        sTemp = { 
+          ...sTemp, 
+          totalSessionsCount: 6 + (sTemp.cycleHistory?.length || 0),
+          simulatedHistory 
+        };
+      } else if (sTemp.name?.toUpperCase() === "EMNA LWETTI") {
+        const overrideEmnaLouetti = [
+          [ {d:"11-janv.", t:"present"}, {d:"18-janv.", t:"present"}, {d:"25-janv.", t:"present"}, {d:"01-févr.", t:"present"}, {d:"08-févr.", t:"present"} ], // 1
+          [ {d:"15-févr.", t:"present"}, {d:"22-févr.", t:"present"}, {d:"15-mars", t:"absent"} ] // 2
+        ];
+        let simulatedHistory = [];
+        overrideEmnaLouetti.forEach(month => {
+          month.forEach(session => {
+            if (session) simulatedHistory.push({ type: session.t, date: new Date() });
+          });
+        });
+        if (sTemp.cycleHistory && sTemp.cycleHistory.length > 0) {
+          sTemp.cycleHistory.forEach(sess => simulatedHistory.push(sess));
+        }
+        sTemp = { 
+          ...sTemp, 
+          totalSessionsCount: 8 + (sTemp.cycleHistory?.length || 0),
+          simulatedHistory 
+        };
+      } else if (sTemp.name?.toUpperCase() === "HANA BRLGHITH") {
+        const overrideHanaBelghith = [
+          [ {d:"25-janv.", t:"present"}, {d:"01-févr.", t:"present"}, {d:"08-févr.", t:"present"}, {d:"15-févr.", t:"present"}, {d:"22-févr.", t:"present"} ], // 1
+          [ {d:"01-mars", t:"absent"}, {d:"08-mars", t:"absent"}, {d:"15-mars", t:"absent"} ] // 2
+        ];
+        let simulatedHistory = [];
+        overrideHanaBelghith.forEach(month => {
+          month.forEach(session => {
+            if (session) simulatedHistory.push({ type: session.t, date: new Date() });
+          });
+        });
+        if (sTemp.cycleHistory && sTemp.cycleHistory.length > 0) {
+          sTemp.cycleHistory.forEach(sess => simulatedHistory.push(sess));
+        }
+        sTemp = { 
+          ...sTemp, 
+          totalSessionsCount: 8 + (sTemp.cycleHistory?.length || 0),
+          simulatedHistory 
+        };
+      } else if (sTemp.name?.toUpperCase() === "NESRINE DRADRA") {
+        const overrideNesrineDradra = [
+          [ {d:"01-févr.", t:"present"}, {d:"08-févr.", t:"present"}, {d:"15-févr.", t:"present"}, {d:"22-févr.", t:"absent"}, {d:"01-mars", t:"present"} ], // 1
+          [ {d:"08-mars", t:"present"}, {d:"15-mars", t:"absent"} ] // 2
+        ];
+        let simulatedHistory = [];
+        overrideNesrineDradra.forEach(month => {
+          month.forEach(session => {
+            if (session) simulatedHistory.push({ type: session.t, date: new Date() });
+          });
+        });
+        if (sTemp.cycleHistory && sTemp.cycleHistory.length > 0) {
+          sTemp.cycleHistory.forEach(sess => simulatedHistory.push(sess));
+        }
+        sTemp = { 
+          ...sTemp, 
+          totalSessionsCount: 7 + (sTemp.cycleHistory?.length || 0),
+          simulatedHistory 
+        };
+      } else if (sTemp.name?.toUpperCase() === "OMAYMA HMIDET") {
+        const override = [
+          [ {d:"07-déc.", t:"present"}, {d:"14-déc.", t:"present"}, {d:"21-déc.", t:"present"}, {d:"28-déc.", t:"present"}, {d:"04-janv.", t:"present"} ],
+          [ {d:"11-janv.", t:"present"}, {d:"18-janv.", t:"present"}, {d:"25-janv.", t:"present"}, {d:"08-févr.", t:"present"}, {d:"15-févr.", t:"present"} ],
+          [ {d:"22-févr.", t:"present"}, {d:"01-mars", t:"absent"}, {d:"08-mars", t:"present"}, {d:"15-mars", t:"absent"} ]
+        ];
+        let simulatedHistory = [];
+        override.forEach(m => m.forEach(s => { if(s) simulatedHistory.push({type: s.t, date: new Date()}) }));
+        if (sTemp.cycleHistory) sTemp.cycleHistory.forEach(sess => simulatedHistory.push(sess));
+        sTemp = { ...sTemp, totalSessionsCount: 14 + (sTemp.cycleHistory?.length || 0), simulatedHistory };
+      } else if (sTemp.name?.toUpperCase() === "RAWAA BOUZIDI") {
+        const override = [
+          [ {d:"04-janv.", t:"present"}, {d:"11-janv.", t:"present"}, {d:"18-janv.", t:"present"}, {d:"25-janv.", t:"present"}, {d:"01-févr.", t:"present"} ],
+          [ {d:"08-févr.", t:"present"}, {d:"15-févr.", t:"present"}, {d:"22-févr.", t:"present"}, {d:"01-mars", t:"absent"}, {d:"08-mars", t:"present"} ],
+          [ {d:"15-mars", t:"present"} ]
+        ];
+        let simulatedHistory = [];
+        override.forEach(m => m.forEach(s => { if(s) simulatedHistory.push({type: s.t, date: new Date()}) }));
+        if (sTemp.cycleHistory) sTemp.cycleHistory.forEach(sess => simulatedHistory.push(sess));
+        sTemp = { ...sTemp, totalSessionsCount: 11 + (sTemp.cycleHistory?.length || 0), simulatedHistory };
+      } else if (sTemp.name?.toUpperCase() === "EMNA GHODHBEN") {
+        const override = [
+          [ {d:"21-déc.", t:"present"}, {d:"28-déc.", t:"present"}, {d:"31-déc.", t:"present"}, {d:"11-janv.", t:"present"}, {d:"18-janv.", t:"present"} ],
+          [ {d:"25-janv.", t:"present"}, {d:"01-févr.", t:"present"}, {d:"04-févr.", t:"present"}, {d:"08-févr.", t:"present"}, {d:"15-févr.", t:"present"} ],
+          [ {d:"22-févr.", t:"present"}, {d:"01-mars", t:"present"}, {d:"08-mars", t:"present"}, {d:"15-mars", t:"present"} ]
+        ];
+        let simulatedHistory = [];
+        override.forEach(m => m.forEach(s => { if(s) simulatedHistory.push({type: s.t, date: new Date()}) }));
+        if (sTemp.cycleHistory) sTemp.cycleHistory.forEach(sess => simulatedHistory.push(sess));
+        sTemp = { ...sTemp, totalSessionsCount: 14 + (sTemp.cycleHistory?.length || 0), simulatedHistory };
+      } else if (sTemp.name?.toUpperCase() === "IBTISSEM BDLEWI") {
+        const override = [
+          [ {d:"09-nov.", t:"present"}, {d:"15-nov.", t:"present"}, {d:"23-nov.", t:"present"}, {d:"30-nov.", t:"present"}, {d:"07-دéc.", t:"present"} ],
+          [ {d:"14-دéc.", t:"absent"}, {d:"21-دéc.", t:"present"}, {d:"28-دéc.", t:"absent"}, {d:"04-janv.", t:"absent"}, {d:"11-janv.", t:"absent"} ]
+        ];
+        let simulatedHistory = [];
+        override.forEach(m => m.forEach(s => { if(s) simulatedHistory.push({type: s.t, date: new Date()}) }));
+        if (sTemp.cycleHistory) sTemp.cycleHistory.forEach(sess => simulatedHistory.push(sess));
+        sTemp = { ...sTemp, totalSessionsCount: 10 + (sTemp.cycleHistory?.length || 0), simulatedHistory };
+      } else if (sTemp.name?.toUpperCase() === "MALEK MKAWAR") {
+        const override = [
+          [ {d:"05-oct.", t:"present"}, {d:"19-oct.", t:"present"}, {d:"26-oct.", t:"present"}, {d:"02-nov.", t:"present"}, {d:"09-nov.", t:"present"} ],
+          [ {d:"16-nov.", t:"present"}, {d:"23-nov.", t:"present"}, {d:"30-nov.", t:"present"}, {d:"07-déc.", t:"present"}, {d:"14-déc.", t:"present"} ],
+          [ {d:"21-déc.", t:"present"}, {d:"28-déc.", t:"present"}, {d:"04-janv.", t:"absent"}, {d:"11-janv.", t:"present"}, {d:"18-janv.", t:"present"} ],
+          [ {d:"25-janv.", t:"present"}, {d:"01-févr.", t:"present"}, {d:"08-févr.", t:"present"}, {d:"15-févr.", t:"present"}, {d:"22-févr.", t:"present"} ],
+          [ {d:"01-mars", t:"present"}, {d:"08-mars", t:"present"}, {d:"15-mars", t:"present"} ]
+        ];
+        let simulatedHistory = [];
+        override.forEach(m => m.forEach(s => { if(s) simulatedHistory.push({type: s.t, date: new Date()}) }));
+        if (sTemp.cycleHistory) sTemp.cycleHistory.forEach(sess => simulatedHistory.push(sess));
+        sTemp = { ...sTemp, totalSessionsCount: 23 + (sTemp.cycleHistory?.length || 0), simulatedHistory };
+      } else if (sTemp.name?.toUpperCase() === "SIWAR KAABECHI") {
+        const override = [
+          [ {d:"12-oct.", t:"present"}, {d:"19-oct.", t:"present"}, {d:"26-oct.", t:"present"}, {d:"02-nov.", t:"present"}, {d:"09-nov.", t:"present"} ],
+          [ {d:"16-nov.", t:"present"}, {d:"23-nov.", t:"present"}, {d:"30-nov.", t:"present"}, {d:"07-déc.", t:"present"}, {d:"14-déc.", t:"absent"} ],
+          [ {d:"21-déc.", t:"present"}, {d:"28-déc.", t:"absent"}, {d:"04-janv.", t:"absent"}, {d:"11-janv.", t:"absent"}, {d:"18-janv.", t:"absent"} ],
+          [ {d:"25-janv.", t:"absent"} ]
+        ];
+        let simulatedHistory = [];
+        override.forEach(m => m.forEach(s => { if(s) simulatedHistory.push({type: s.t, date: new Date()}) }));
+        if (sTemp.cycleHistory) sTemp.cycleHistory.forEach(sess => simulatedHistory.push(sess));
+        sTemp = { ...sTemp, totalSessionsCount: 16 + (sTemp.cycleHistory?.length || 0), simulatedHistory };
+      } else if (sTemp.name?.toUpperCase() === "BASSMA HAMDEWI") {
+        const override = [
+          [ {d:"12-oct.", t:"present"}, {d:"19-oct.", t:"present"}, {d:"26-oct.", t:"present"}, {d:"02-nov.", t:"present"}, {d:"09-nov.", t:"present"} ],
+          [ {d:"16-nov.", t:"present"}, {d:"23-nov.", t:"present"}, {d:"30-nov.", t:"present"}, {d:"07-déc.", t:"present"}, {d:"14-déc.", t:"present"} ],
+          [ {d:"21-déc.", t:"present"}, {d:"28-déc.", t:"present"}, {d:"04-janv.", t:"present"}, {d:"11-janv.", t:"present"}, {d:"18-janv.", t:"present"} ],
+          [ {d:"25-janv.", t:"present"}, {d:"01-févr.", t:"present"}, {d:"08-févr.", t:"present"}, {d:"15-févr.", t:"present"}, {d:"22-févr.", t:"present"} ],
+          [ {d:"01-mars", t:"absent"}, {d:"08-mars", t:"present"}, {d:"15-mars", t:"present"} ]
+        ];
+        let simulatedHistory = [];
+        override.forEach(m => m.forEach(s => { if(s) simulatedHistory.push({type: s.t, date: new Date()}) }));
+        if (sTemp.cycleHistory) sTemp.cycleHistory.forEach(sess => simulatedHistory.push(sess));
+        sTemp = { ...sTemp, totalSessionsCount: 23 + (sTemp.cycleHistory?.length || 0), simulatedHistory };
+      } else if (sTemp.name?.toUpperCase() === "SALWA HANI") {
+        const override = [
+          [ {d:"19-oct.", t:"present"}, {d:"26-oct.", t:"present"}, {d:"02-nov.", t:"absent"}, {d:"09-nov.", t:"present"}, {d:"16-nov.", t:"present"} ],
+          [ {d:"23-nov.", t:"present"}, {d:"30-nov.", t:"present"}, {d:"10-déc.", t:"present"}, {d:"14-déc.", t:"absent"}, {d:"21-déc.", t:"absent"} ],
+          [ {d:"28-déc.", t:"absent"}, {d:"04-janv.", t:"absent"} ]
+        ];
+        let simulatedHistory = [];
+        override.forEach(m => m.forEach(s => { if(s) simulatedHistory.push({type: s.t, date: new Date()}) }));
+        if (sTemp.cycleHistory) sTemp.cycleHistory.forEach(sess => simulatedHistory.push(sess));
+        sTemp = { ...sTemp, totalSessionsCount: 12 + (sTemp.cycleHistory?.length || 0), simulatedHistory };
+      } else if (sTemp.name?.toUpperCase() === "MAISSA BEN NASER") {
+        const override = [
+          [ {d:"07-sept.", t:"present"}, {d:"14-sept.", t:"present"}, {d:"21-sept.", t:"present"}, {d:"28-sept.", t:"present"}, {d:"05-oct.", t:"present"} ],
+          [ {d:"12-oct.", t:"absent"}, {d:"19-oct.", t:"present"}, {d:"26-oct.", t:"absent"}, {d:"02-nov.", t:"present"}, {d:"09-nov.", t:"present"} ],
+          [ {d:"16-nov.", t:"present"}, {d:"23-nov.", t:"present"}, {d:"30-nov.", t:"present"}, {d:"07-déc.", t:"present"}, {d:"14-déc.", t:"present"} ],
+          [ {d:"21-déc.", t:"present"}, {d:"28-déc.", t:"absent"}, {d:"04-janv.", t:"absent"}, {d:"11-janv.", t:"absent"} ]
+        ];
+        let simulatedHistory = [];
+        override.forEach(m => m.forEach(s => { if(s) simulatedHistory.push({type: s.t, date: new Date()}) }));
+        if (sTemp.cycleHistory) sTemp.cycleHistory.forEach(sess => simulatedHistory.push(sess));
+        sTemp = { ...sTemp, totalSessionsCount: 19 + (sTemp.cycleHistory?.length || 0), simulatedHistory };
+      } else if (sTemp.name?.toUpperCase() === "TAKWA HARCHI") {
+        const override = [
+          [ {d:"05-oct.", t:"present"}, {d:"12-oct.", t:"present"}, {d:"19-oct.", t:"present"}, {d:"26-oct.", t:"present"}, {d:"02-nov.", t:"absent"} ],
+          [ {d:"09-nov.", t:"present"}, {d:"16-nov.", t:"present"}, {d:"23-nov.", t:"present"}, {d:"30-nov.", t:"present"}, {d:"07-déc.", t:"present"} ],
+          [ {d:"14-déc.", t:"absent"}, {d:"21-déc.", t:"absent"} ]
+        ];
+        let simulatedHistory = [];
+        override.forEach(m => m.forEach(s => { if(s) simulatedHistory.push({type: s.t, date: new Date()}) }));
+        if (sTemp.cycleHistory) sTemp.cycleHistory.forEach(sess => simulatedHistory.push(sess));
+        sTemp = { ...sTemp, totalSessionsCount: 12 + (sTemp.cycleHistory?.length || 0), simulatedHistory };
+      } else if (sTemp.name?.toUpperCase() === "MARIEM TRABELSI") {
+        const override = [
+          [ {d:"06-juil.", t:"present"}, {d:"13-juil.", t:"present"}, {d:"20-juil.", t:"present"}, {d:"27-juil.", t:"present"}, {d:"03-août", t:"present"} ],
+          [ {d:"10-août", t:"present"}, {d:"17-août", t:"present"}, {d:"24-août", t:"present"}, {d:"31-août", t:"present"} ],
+          [ {d:"14-août", t:"present"}, {d:"21-sept.", t:"present"}, {d:"28-sept.", t:"present"}, {d:"05-oct.", t:"present"}, {d:"12-oct.", t:"present"} ],
+          [ {d:"19-oct.", t:"present"}, {d:"26-oct.", t:"present"}, {d:"02-nov.", t:"present"}, {d:"09-nov.", t:"present"}, {d:"16-nov.", t:"present"} ],
+          [ {d:"23-nov.", t:"present"}, {d:"30-nov.", t:"present"}, {d:"07-déc.", t:"present"}, {d:"14-déc.", t:"present"}, {d:"21-déc.", t:"present"} ],
+          [ {d:"28-déc.", t:"present"}, {d:"04-janv.", t:"present"}, {d:"11-janv.", t:"present"}, {d:"18-janv.", t:"present"}, {d:"25-janv.", t:"present"} ],
+          [ {d:"01-mars", t:"present"}, {d:"08-mars", t:"absent"}, {d:"15-mars", t:"absent"} ]
+        ];
+        let simulatedHistory = [];
+        override.forEach(m => m.forEach(s => { if(s) simulatedHistory.push({type: s.t, date: new Date()}) }));
+        if (sTemp.cycleHistory) sTemp.cycleHistory.forEach(sess => simulatedHistory.push(sess));
+        sTemp = { ...sTemp, totalSessionsCount: 32 + (sTemp.cycleHistory?.length || 0), simulatedHistory };
+      } else if (sTemp.name?.toUpperCase() === "RIHAB BOUALI") {
+        const override = [
+          [ {d:"23-févr.", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"} ],
+          [ {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"} ],
+          [ {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"} ],
+          [ {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"} ],
+          [ {d:"27-juil.", t:"present"}, {d:"03-août", t:"present"}, {d:"10-août", t:"present"}, {d:"17-août", t:"absent"}, {d:"24-août", t:"present"} ],
+          [ {d:"31-août", t:"present"}, {d:"07-sept.", t:"present"}, {d:"14-sept.", t:"present"}, {d:"21-sept.", t:"present"}, {d:"28-sept.", t:"present"} ],
+          [ {d:"05-oct.", t:"present"}, {d:"12-oct.", t:"present"}, {d:"19-oct.", t:"present"}, {d:"26-oct.", t:"absent"}, {d:"02-nov.", t:"present"} ],
+          [ {d:"09-nov.", t:"present"}, {d:"16-nov.", t:"present"}, {d:"23-nov.", t:"present"}, {d:"30-nov.", t:"present"}, {d:"07-déc.", t:"present"} ],
+          [ {d:"14-déc.", t:"present"}, {d:"21-déc.", t:"present"}, {d:"28-déc.", t:"present"}, {d:"04-janv.", t:"present"}, {d:"11-janv.", t:"present"} ],
+          [ {d:"18-janv.", t:"present"}, {d:"25-janv.", t:"present"}, {d:"01-févr.", t:"present"}, {d:"08-févr.", t:"present"}, {d:"15-févr.", t:"absent"} ],
+          [ {d:"22-févr.", t:"present"}, {d:"01-mars", t:"present"}, {d:"08-mars", t:"present"}, {d:"15-mars", t:"present"} ]
+        ];
+        let simulatedHistory = [];
+        override.forEach(m => m.forEach(s => { if(s) simulatedHistory.push({type: s.t, date: new Date()}) }));
+        if (sTemp.cycleHistory) sTemp.cycleHistory.forEach(sess => simulatedHistory.push(sess));
+        sTemp = { ...sTemp, totalSessionsCount: 54 + (sTemp.cycleHistory?.length || 0), simulatedHistory };
+      } else if (sTemp.name?.toUpperCase() === "AICHA HERCHI") {
+        const override = [
+          [ {d:"16-févr.", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"} ],
+          [ {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"} ],
+          [ {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"} ],
+          [ {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"} ],
+          [ {d:"06-juil.", t:"present"}, {d:"13-juil.", t:"present"}, {d:"20-juil.", t:"present"}, {d:"27-juil.", t:"present"}, {d:"03-août", t:"present"} ],
+          [ {d:"10-août", t:"present"}, {d:"17-août", t:"present"}, {d:"24-août", t:"present"}, {d:"31-août", t:"present"}, {d:"07-sept.", t:"absent"} ],
+          [ {d:"14-sept.", t:"absent"}, {d:"21-sept.", t:"present"}, {d:"28-sept.", t:"present"}, {d:"05-oct.", t:"present"}, {d:"12-oct.", t:"present"} ],
+          [ {d:"19-oct.", t:"present"}, {d:"26-oct.", t:"present"}, {d:"02-nov.", t:"present"}, {d:"09-nov.", t:"present"}, {d:"16-nov.", t:"present"} ],
+          [ {d:"23-nov.", t:"present"}, {d:"30-nov.", t:"present"}, {d:"07-déc.", t:"present"}, {d:"14-déc.", t:"present"}, {d:"24-déc.", t:"present"} ],
+          [ {d:"28-déc.", t:"absent"}, {d:"04-janv.", t:"absent"}, {d:"11-janv.", t:"present"}, {d:"18-janv.", t:"present"}, {d:"25-janv.", t:"absent"} ],
+          [ {d:"01-févr.", t:"present"}, {d:"08-févr.", t:"present"}, {d:"15-févr.", t:"present"}, {d:"22-févr.", t:"present"}, {d:"01-mars", t:"present"} ],
+          [ {d:"08-mars", t:"present"}, {d:"15-mars", t:"present"} ]
+        ];
+        let simulatedHistory = [];
+        override.forEach(m => m.forEach(s => { if(s) simulatedHistory.push({type: s.t, date: new Date()}) }));
+        if (sTemp.cycleHistory) sTemp.cycleHistory.forEach(sess => simulatedHistory.push(sess));
+        sTemp = { ...sTemp, totalSessionsCount: 57 + (sTemp.cycleHistory?.length || 0), simulatedHistory };
+      } else if (sTemp.name?.toUpperCase() === "MANEL YOUSFI") {
+        const override = [
+          [ {d:"12-janv.", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"} ],
+          [ {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"} ],
+          [ {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"} ],
+          [ {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"} ],
+          [ {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"} ],
+          [ {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"} ],
+          [ {d:"17-août", t:"absent"}, {d:"24-août", t:"present"}, {d:"31-août", t:"present"}, {d:"07-sept.", t:"present"}, {d:"14-sept.", t:"present"} ],
+          [ {d:"21-sept.", t:"present"}, {d:"28-sept.", t:"present"}, {d:"05-oct.", t:"present"}, {d:"12-oct.", t:"present"}, {d:"19-oct.", t:"present"} ],
+          [ {d:"26-oct.", t:"present"}, {d:"02-nov.", t:"present"}, {d:"09-nov.", t:"present"}, {d:"16-nov.", t:"present"}, {d:"23-nov.", t:"present"} ],
+          [ {d:"30-nov.", t:"present"}, {d:"07-déc.", t:"present"}, {d:"14-déc.", t:"absent"}, {d:"21-déc.", t:"present"}, {d:"28-déc.", t:"absent"} ],
+          [ {d:"04-janv.", t:"present"}, {d:"11-janv.", t:"absent"}, {d:"18-janv.", t:"absent"}, {d:"25-janv.", t:"present"} ],
+          [ {d:"01-févr.", t:"present"}, {d:"08-févr.", t:"present"}, {d:"15-févr.", t:"present"}, {d:"22-févr.", t:"present"}, {d:"01-mars", t:"present"} ]
+        ];
+        let simulatedHistory = [];
+        override.forEach(m => m.forEach(s => { if(s) simulatedHistory.push({type: s.t, date: new Date()}) }));
+        if (sTemp.cycleHistory) sTemp.cycleHistory.forEach(sess => simulatedHistory.push(sess));
+        sTemp = { ...sTemp, totalSessionsCount: 61 + (sTemp.cycleHistory?.length || 0), simulatedHistory };
+      } else if (sTemp.name?.toUpperCase() === "RIM HIDRI") {
+        const override = [
+          [ {d:"19-janv.", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"} ],
+          [ {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"} ],
+          [ {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"} ],
+          [ {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"} ],
+          [ {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"} ],
+          [ {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"} ],
+          [ {d:"17-août", t:"present"}, {d:"24-août", t:"present"}, {d:"31-août", t:"present"}, {d:"07-sept.", t:"present"}, {d:"14-sept.", t:"present"} ],
+          [ {d:"21-sept.", t:"present"}, {d:"28-sept.", t:"present"}, {d:"05-oct.", t:"present"}, {d:"12-oct.", t:"absent"}, {d:"19-oct.", t:"present"} ],
+          [ {d:"26-oct.", t:"absent"}, {d:"02-nov.", t:"present"}, {d:"09-nov.", t:"present"}, {d:"23-nov.", t:"present"}, {d:"30-nov.", t:"present"} ],
+          [ {d:"07-déc.", t:"present"}, {d:"14-déc.", t:"present"}, {d:"21-déc.", t:"present"}, {d:"28-déc.", t:"present"}, {d:"04-janv.", t:"present"} ],
+          [ {d:"11-janv.", t:"present"}, {d:"18-janv.", t:"present"}, {d:"25-janv.", t:"present"}, {d:"01-févr.", t:"present"}, {d:"08-févr.", t:"present"} ],
+          [ {d:"15-févr.", t:"absent"}, {d:"22-févr.", t:"present"}, {d:"01-mars", t:"present"}, {d:"08-mars", t:"present"}, {d:"15-mars", t:"present"} ]
+        ];
+        let simulatedHistory = [];
+        override.forEach(m => m.forEach(s => { if(s) simulatedHistory.push({type: s.t, date: new Date()}) }));
+        if (sTemp.cycleHistory) sTemp.cycleHistory.forEach(sess => simulatedHistory.push(sess));
+        sTemp = { ...sTemp, totalSessionsCount: 60 + (sTemp.cycleHistory?.length || 0), simulatedHistory };
+      } else if (sTemp.name?.toUpperCase() === "WIDED AHMER") {
+        const override = [
+          [ {d:"05-janv.", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"} ],
+          [ {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"} ],
+          [ {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"} ],
+          [ {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"} ],
+          [ {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"} ],
+          [ {d:"29-juin", t:"present"}, {d:"06-juil.", t:"present"}, {d:"13-juil.", t:"present"}, {d:"20-juil.", t:"present"}, {d:"27-juil.", t:"present"} ],
+          [ {d:"03-août", t:"present"}, {d:"10-août", t:"present"}, {d:"17-août", t:"present"}, {d:"24-août", t:"present"}, {d:"31-août", t:"present"} ],
+          [ {d:"07-sept.", t:"absent"}, {d:"14-sept.", t:"present"}, {d:"21-sept.", t:"present"}, {d:"28-sept.", t:"present"}, {d:"05-oct.", t:"present"} ],
+          [ {d:"12-oct.", t:"present"}, {d:"19-oct.", t:"absent"}, {d:"26-oct.", t:"present"}, {d:"02-nov.", t:"absent"}, {d:"09-nov.", t:"present"} ],
+          [ {d:"16-nov.", t:"present"}, {d:"09-nov.", t:"present"}, {d:"16-nov.", t:"present"}, {d:"23-nov.", t:"present"}, {d:"30-nov.", t:"present"} ],
+          [ {d:"07-déc", t:"present"}, {d:"14-déc", t:"present"}, {d:"21-déc", t:"present"}, {d:"28-déc", t:"present"}, {d:"04-janv.", t:"absent"} ],
+          [ {d:"11-janv.", t:"present"}, {d:"18-janv.", t:"present"}, {d:"25-janv.", t:"present"}, {d:"01-févr.", t:"present"}, {d:"08-févr.", t:"present"} ],
+          [ {d:"08-mars", t:"present"}, {d:"15-mars", t:"present"} ],
+          [ {d:"29-mars", t:"absent"}, {d:"05-avr.", t:"present"} ]
+        ];
+        let simulatedHistory = [];
+        override.forEach(m => m.forEach(s => { if(s) simulatedHistory.push({type: s.t, date: new Date()}) }));
+        if (sTemp.cycleHistory) sTemp.cycleHistory.forEach(sess => simulatedHistory.push(sess));
+        sTemp = { ...sTemp, totalSessionsCount: 67 + (sTemp.cycleHistory?.length || 0), simulatedHistory };
+      } else if (sTemp.name?.trim().toUpperCase() === "SIHEM SALAH") {
+        const override = [
+           [{d:"01-nov.", t:"present"}],
+           [{d:"10-déc.", t:"present"}, {d:"10-déc.", t:"present"}, {d:"20-déc.", t:"absent"}, {d:"27-déc.", t:"present"}, {d:"03-janv.", t:"present"}, {d:"03-janv.", t:"present"}],
+           [{d:"10-janv.", t:"present"}, {d:"10-janv.", t:"present"}, {d:"17-janv.", t:"present"}, {d:"17-janv.", t:"present"}, {d:"24-janv.", t:"absent"}, {d:"24-janv.", t:"absent"}, {d:"31-janv.", t:"present"}, {d:"31-janv.", t:"present"}],
+           [{d:"07-mars", t:"present"}, {d:"07-mars", t:"present"}, {d:"14-mars", t:"present"}, {d:"14-mars", t:"present"}, {d:"28-mars", t:"present"}, {d:"28-mars", t:"present"}, {d:"04-avr.", t:"absent"}, {d:"04-avr.", t:"absent"}]
+        ];
+        let simulatedHistory = [];
+        override.forEach(m => m.forEach(s => { if(s) simulatedHistory.push({type: s.t, date: new Date()}) }));
+        if (sTemp.cycleHistory) sTemp.cycleHistory.forEach(sess => simulatedHistory.push(sess));
+        sTemp = { ...sTemp, totalSessionsCount: 23 + (sTemp.cycleHistory?.length || 0), simulatedHistory, paidSessionsCount: (sTemp.paidSessionsCount || 0) };
+      } else if (sTemp.name?.toUpperCase() === "YOSRA BEN TAHER") {
+        const override = [
+          [ {d:"22-sept.", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"} ],
+          [ {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"} ],
+          [ {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"} ],
+          [ {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"} ],
+          [ {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"} ],
+          [ {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"} ],
+          [ {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"} ],
+          [ {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"} ],
+          [ {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"} ],
+          [ {d:"03-août", t:"present"}, {d:"10-août", t:"present"}, {d:"17-août", t:"present"}, {d:"24-août", t:"present"}, {d:"31-août", t:"present"} ],
+          [ {d:"07-sept.", t:"present"}, {d:"14-sept.", t:"present"}, {d:"21-sept.", t:"absent"}, {d:"28-sept.", t:"present"}, {d:"05-oct.", t:"absent"} ],
+          [ {d:"12-oct.", t:"present"}, {d:"19-oct.", t:"present"}, {d:"26-oct.", t:"present"}, {d:"02-nov.", t:"present"} ],
+          [ {d:"16-nov.", t:"present"}, {d:"09-nov.", t:"present"}, {d:"16-nov.", t:"present"}, {d:"23-nov.", t:"present"}, {d:"30-nov.", t:"present"} ],
+          [ {d:"07-déc.", t:"present"}, {d:"14-déc.", t:"present"}, {d:"21-déc.", t:"present"}, {d:"28-déc.", t:"present"}, {d:"04-janv.", t:"present"} ],
+          [ {d:"11-janv.", t:"present"}, {d:"18-janv.", t:"present"}, {d:"25-janv.", t:"present"}, {d:"01-févr.", t:"absent"}, {d:"08-févr.", t:"present"} ],
+          [ {d:"08-févr.", t:"present"}, {d:"15-févr.", t:"present"}, {d:"22-févr.", t:"present"}, {d:"01-mars", t:"absent"} ]
+        ];
+        let simulatedHistory = [];
+        override.forEach(m => m.forEach(s => { if(s) simulatedHistory.push({type: s.t, date: new Date()}) }));
+        if (sTemp.cycleHistory) sTemp.cycleHistory.forEach(sess => simulatedHistory.push(sess));
+        sTemp = { ...sTemp, totalSessionsCount: 78 + (sTemp.cycleHistory?.length || 0), simulatedHistory, paidSessionsCount: 45 + (sTemp.paidSessionsCount || 0) };
+      } else if (sTemp.name?.toUpperCase() === "RIHAB BOUHLEL") {
+        const override = [
+          [ {d:"01-sept.", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"} ],
+          [ {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"} ],
+          [ {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"} ],
+          [ {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"} ],
+          [ {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"} ],
+          [ {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"} ],
+          [ {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"} ],
+          [ {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"} ],
+          [ {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"} ],
+          [ {d:"06-juil.", t:"present"}, {d:"13-juil.", t:"present"}, {d:"20-juil.", t:"present"}, {d:"27-juil.", t:"present"}, {d:"03-août", t:"present"} ],
+          [ {d:"10-août", t:"present"}, {d:"17-août", t:"absent"}, {d:"24-août", t:"present"}, {d:"31-août", t:"present"}, {d:"07-sept.", t:"present"} ],
+          [ {d:"21-sept.", t:"present"}, {d:"28-sept.", t:"present"}, {d:"05-oct.", t:"present"}, {d:"12-oct.", t:"absent"}, {d:"19-oct.", t:"present"} ],
+          [ {d:"26-oct.", t:"present"}, {d:"02-nov.", t:"present"}, {d:"09-nov.", t:"present"}, {d:"16-nov.", t:"present"}, {d:"23-nov.", t:"present"} ],
+          [ {d:"30-nov.", t:"present"}, {d:"07-déc.", t:"absent"}, {d:"14-déc.", t:"present"}, {d:"21-déc.", t:"present"}, {d:"28-déc.", t:"present"} ],
+          [ {d:"04-janv.", t:"present"}, {d:"11-janv.", t:"present"}, {d:"18-janv.", t:"present"}, {d:"25-janv.", t:"present"}, {d:"01-févr.", t:"present"} ],
+          [ {d:"08-févr.", t:"present"}, {d:"15-févr.", t:"present"}, {d:"22-févr.", t:"present"}, {d:"01-mars", t:"absent"}, {d:"08-mars", t:"present"} ],
+          [ {d:"15-mars", t:"present"} ]
+        ];
+        let simulatedHistory = [];
+        override.forEach(m => m.forEach(s => { if(s) simulatedHistory.push({type: s.t, date: new Date()}) }));
+        if (sTemp.cycleHistory) sTemp.cycleHistory.forEach(sess => simulatedHistory.push(sess));
+        sTemp = { ...sTemp, totalSessionsCount: 81 + (sTemp.cycleHistory?.length || 0), simulatedHistory, paidSessionsCount: 60 + (sTemp.paidSessionsCount || 0) };
+      } else if (sTemp.name?.toUpperCase() === "MARWA HENTATI") {
+        const override = [
+          [ {d:"20-oct.", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"} ],
+          [ {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"} ],
+          [ {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"} ],
+          [ {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"} ],
+          [ {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"} ],
+          [ {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"} ],
+          [ {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"} ],
+          [ {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"} ],
+          [ {d:"20-juil.", t:"present"}, {d:"27-juil.", t:"present"}, {d:"03-août", t:"present"}, {d:"10-août", t:"present"}, {d:"17-août", t:"present"} ],
+          [ {d:"24-août", t:"present"}, {d:"31-août", t:"present"}, {d:"07-sept.", t:"present"}, {d:"14-sept.", t:"present"}, {d:"21-sept.", t:"present"} ],
+          [ {d:"28-sept.", t:"present"}, {d:"05-oct.", t:"present"}, {d:"12-oct.", t:"present"}, {d:"19-oct.", t:"present"}, {d:"26-oct.", t:"present"} ],
+          [ {d:"02-nov.", t:"absent"}, {d:"09-nov.", t:"present"}, {d:"16-nov.", t:"present"}, {d:"23-nov.", t:"present"}, {d:"30-nov.", t:"present"} ],
+          [ {d:"07-déc.", t:"absent"}, {d:"14-déc.", t:"present"}, {d:"21-déc.", t:"present"}, {d:"28-déc.", t:"present"}, {d:"04-janv.", t:"absent"} ],
+          [ {d:"11-janv.", t:"present"}, {d:"18-janv.", t:"present"}, {d:"25-janv.", t:"present"}, {d:"01-févr.", t:"present"}, {d:"08-févr.", t:"present"} ],
+          [ {d:"15-févr.", t:"present"}, {d:"22-févr.", t:"present"}, {d:"01-mars", t:"present"}, {d:"08-mars", t:"present"}, {d:"15-mars", t:"absent"} ]
+        ];
+        let simulatedHistory = [];
+        override.forEach(m => m.forEach(s => { if(s) simulatedHistory.push({type: s.t, date: new Date()}) }));
+        if (sTemp.cycleHistory) sTemp.cycleHistory.forEach(sess => simulatedHistory.push(sess));
+        sTemp = { ...sTemp, totalSessionsCount: 75 + (sTemp.cycleHistory?.length || 0), simulatedHistory, paidSessionsCount: 60 + (sTemp.paidSessionsCount || 0) };
+      } else if (sTemp.name?.toUpperCase() === "ARBIA HARATHI") {
+        const override = [
+          [ {d:"27-oct.", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"} ],
+          [ {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"} ],
+          [ {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"} ],
+          [ {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"} ],
+          [ {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"} ],
+          [ {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"} ],
+          [ {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"} ],
+          [ {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"} ],
+          [ {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"}, {d:"--", t:"present"} ],
+          [ {d:"03-août", t:"present"}, {d:"10-août", t:"present"}, {d:"17-août", t:"present"}, {d:"24-août", t:"present"}, {d:"31-août", t:"present"} ],
+          [ {d:"18-janv.", t:"present"}, {d:"25-janv.", t:"present"}, {d:"01-févr.", t:"present"}, {d:"08-févr.", t:"present"}, {d:"15-févr.", t:"present"} ],
+          [ {d:"22-févr.", t:"present"}, {d:"01-mars", t:"present"}, {d:"08-mars", t:"present"}, {d:"15-mars", t:"present"} ]
+        ];
+        let simulatedHistory = [];
+        override.forEach(m => m.forEach(s => { if(s) simulatedHistory.push({type: s.t, date: new Date()}) }));
+        if (sTemp.cycleHistory) sTemp.cycleHistory.forEach(sess => simulatedHistory.push(sess));
+        sTemp = { ...sTemp, totalSessionsCount: 60 + (sTemp.cycleHistory?.length || 0), simulatedHistory, paidSessionsCount: 40 + (sTemp.paidSessionsCount || 0) };
+      } else if (sTemp.name?.trim().toUpperCase() === "ARIJ MNASRI") {
+        const override = [
+          [ {d:"08-avr.", t:"present"} ]
+        ];
+        let simulatedHistory = [];
+        override.forEach(m => m.forEach(s => { if(s) simulatedHistory.push({type: s.t, date: new Date()}) }));
+        if (sTemp.cycleHistory) sTemp.cycleHistory.forEach(sess => simulatedHistory.push(sess));
+        sTemp = { ...sTemp, totalSessionsCount: 1 + (sTemp.cycleHistory?.length || 0), simulatedHistory, paidSessionsCount: (sTemp.paidSessionsCount || 0) };
+      } else if (sTemp.name?.trim().toUpperCase() === "HANEN BELAAYEB") {
+        const override = [
+          [ {d:"31-mars", t:"present"}, {d:"01-avr.", t:"present"}, {d:"07-avr.", t:"present"}, {d:"08-avr.", t:"present"} ]
+        ];
+        let simulatedHistory = [];
+        override.forEach(m => m.forEach(s => { if(s) simulatedHistory.push({type: s.t, date: new Date()}) }));
+        if (sTemp.cycleHistory) sTemp.cycleHistory.forEach(sess => simulatedHistory.push(sess));
+        sTemp = { ...sTemp, totalSessionsCount: 4 + (sTemp.cycleHistory?.length || 0), simulatedHistory, paidSessionsCount: (sTemp.paidSessionsCount || 0) };
+      } else if (sTemp.name?.trim().toUpperCase() === "CHAHINEZ MEJDOUB") {
+        const override = [
+          [ {d:"08-janv.", t:"present"} ]
+        ];
+        let simulatedHistory = [];
+        override.forEach(m => m.forEach(s => { if(s) simulatedHistory.push({type: s.t, date: new Date()}) }));
+        if (sTemp.cycleHistory) sTemp.cycleHistory.forEach(sess => simulatedHistory.push(sess));
+        sTemp = { ...sTemp, totalSessionsCount: 1 + (sTemp.cycleHistory?.length || 0), simulatedHistory, paidSessionsCount: (sTemp.paidSessionsCount || 0) };
+      } else if (sTemp.name?.trim().toUpperCase() === "DHEKRA GLISSI") {
+        const override = [
+          [ {d:"04-mars", t:"present"}, {d:"11-mars", t:"present"}, {d:"11-mars", t:"present"}, {d:"25-mars", t:"present"}, {d:"25-mars", t:"present"}, {d:"01-avr.", t:"present"}, {d:"08-avr.", t:"present"}, {d:"08-avr.", t:"present"} ]
+        ];
+        let simulatedHistory = [];
+        override.forEach(m => m.forEach(s => { if(s) simulatedHistory.push({type: s.t, date: new Date()}) }));
+        if (sTemp.cycleHistory) sTemp.cycleHistory.forEach(sess => simulatedHistory.push(sess));
+        sTemp = { ...sTemp, totalSessionsCount: 8 + (sTemp.cycleHistory?.length || 0), simulatedHistory, paidSessionsCount: (sTemp.paidSessionsCount || 0) };
+      } else if (sTemp.name?.trim().toUpperCase() === "YASSMINE GUIDARA") {
+        const override = [
+          [ {d:"24-janv.", t:"present"}, {d:"24-janv.", t:"present"}, {d:"31-janv.", t:"present"}, {d:"31-janv.", t:"present"}, {d:"07-févr.", t:"present"}, {d:"07-févr.", t:"present"}, {d:"17-févr.", t:"present"}, {d:"14-févr.", t:"present"} ],
+          [ {d:"04-avr.", t:"present"}, {d:"05-avr.", t:"present"} ]
+        ];
+        let simulatedHistory = [];
+        override.forEach(m => m.forEach(s => { if(s) simulatedHistory.push({type: s.t, date: new Date()}) }));
+        if (sTemp.cycleHistory) sTemp.cycleHistory.forEach(sess => simulatedHistory.push(sess));
+        sTemp = { ...sTemp, totalSessionsCount: 10 + (sTemp.cycleHistory?.length || 0), simulatedHistory, paidSessionsCount: (sTemp.paidSessionsCount || 0) };
+      } else if (sTemp.name?.trim().toUpperCase() === "NADA CHIHA") {
+        const override = [
+          [ {d:"03-mars", t:"present"}, {d:"04-mars", t:"present"}, {d:"10-mars", t:"present"}, {d:"11-mars", t:"present"}, {d:"24-mars", t:"present"}, {d:"25-mars", t:"present"}, {d:"31-mars", t:"present"}, {d:"01-avr.", t:"present"} ],
+          [ {d:"07-avr.", t:"present"}, {d:"08-avr.", t:"present"} ]
+        ];
+        let simulatedHistory = [];
+        override.forEach(m => m.forEach(s => { if(s) simulatedHistory.push({type: s.t, date: new Date()}) }));
+        if (sTemp.cycleHistory) sTemp.cycleHistory.forEach(sess => simulatedHistory.push(sess));
+        sTemp = { ...sTemp, totalSessionsCount: 10 + (sTemp.cycleHistory?.length || 0), simulatedHistory, paidSessionsCount: (sTemp.paidSessionsCount || 0) };
+      } else if (sTemp.name?.trim().toUpperCase() === "EMNA AKROUT") {
+        const override = [
+          [{ d: "27-janv.", t: "present" }, { d: "28-janv.", t: "present" }, { d: "03-févr.", t: "present" }, { d: "04-févr.", t: "present" }, { d: "10-févr.", t: "present" }, { d: "11-févr.", t: "present" }, { d: "17-févr.", t: "present" }, { d: "18-févr.", t: "present" }],
+          [{ d: "24-févr.", t: "present" }, { d: "25-févr.", t: "present" }, { d: "03-mars", t: "present" }, { d: "04-mars", t: "present" }, { d: "10-mars", t: "present" }, { d: "11-mars", t: "present" }, { d: "24-mars", t: "present" }, { d: "25-mars", t: "present" }],
+          [{ d: "31-mars", t: "present" }, { d: "01-avr.", t: "present" }, { d: "08-avr.", t: "present" }]
+        ];
+        let simulatedHistory = [];
+        override.forEach(m => m.forEach(s => { if(s) simulatedHistory.push({type: s.t, date: new Date()}) }));
+        if (sTemp.cycleHistory) sTemp.cycleHistory.forEach(sess => simulatedHistory.push(sess));
+        sTemp = { ...sTemp, totalSessionsCount: 19 + (sTemp.cycleHistory?.length || 0), simulatedHistory, paidSessionsCount: (sTemp.paidSessionsCount || 0) };
+      } else if (sTemp.name?.trim().toUpperCase() === "OMAYMA HLELI") {
+        const override = [
+          [{ d: "10-févr.", t: "present" }, { d: "11-févr.", t: "present" }, { d: "17-févr.", t: "present" }, { d: "18-févr.", t: "present" }, { d: "24-févr.", t: "present" }, { d: "25-févr.", t: "present" }, { d: "03-mars", t: "present" }, { d: "10-mars", t: "present" }],
+          [{ d: "24-mars", t: "present" }, { d: "25-mars", t: "present" }, { d: "31-mars", t: "present" }, { d: "01-avr.", t: "present" }, { d: "07-avr.", t: "present" }, { d: "08-avr.", t: "present" }]
+        ];
+        let simulatedHistory = [];
+        override.forEach(m => m.forEach(s => { if(s) simulatedHistory.push({type: s.t, date: new Date()}) }));
+        if (sTemp.cycleHistory) sTemp.cycleHistory.forEach(sess => simulatedHistory.push(sess));
+        sTemp = { ...sTemp, totalSessionsCount: 14 + (sTemp.cycleHistory?.length || 0), simulatedHistory, paidSessionsCount: (sTemp.paidSessionsCount || 0) };
+      } else if (sTemp.name?.trim().toUpperCase() === "EYA ABIDA") {
+        const override = [
+          [{ d: "13-janv.", t: "present" }, { d: "17-janv.", t: "present" }, { d: "20-janv.", t: "present" }, { d: "24-janv.", t: "present" }, { d: "27-janv.", t: "present" }, { d: "31-janv.", t: "present" }, { d: "03-févr.", t: "present" }, { d: "07-févr.", t: "present" }],
+          [{ d: "10-févr.", t: "present" }, { d: "14-févr.", t: "present" }, { d: "17-févr.", t: "present" }, { d: "24-févr.", t: "present" }, { d: "28-févr.", t: "present" }, { d: "03-mars", t: "present" }, { d: "07-mars", t: "present" }, { d: "10-mars", t: "present" }]
+        ];
+        let simulatedHistory = [];
+        override.forEach(m => m.forEach(s => { if(s) simulatedHistory.push({type: s.t, date: new Date()}) }));
+        if (sTemp.cycleHistory) sTemp.cycleHistory.forEach(sess => simulatedHistory.push(sess));
+        sTemp = { ...sTemp, totalSessionsCount: 16 + (sTemp.cycleHistory?.length || 0), simulatedHistory, paidSessionsCount: (sTemp.paidSessionsCount || 0) };
+      } else if (sTemp.name?.trim().toUpperCase() === "OMAYMA BEN NASSER") {
+        const override = [
+          [{ d: "24-janv.", t: "present" }, { d: "24-janv.", t: "present" }, { d: "31-janv.", t: "present" }, { d: "31-janv.", t: "present" }, { d: "07-févr.", t: "present" }, { d: "07-févr.", t: "present" }, { d: "14-févr.", t: "present" }, { d: "14-févr.", t: "present" }],
+          [{ d: "28-mars", t: "present" }, { d: "28-mars", t: "present" }, { d: "04-avr.", t: "present" }, { d: "04-avr.", t: "present" }]
+        ];
+        let simulatedHistory = [];
+        override.forEach(m => m.forEach(s => { if(s) simulatedHistory.push({type: s.t, date: new Date()}) }));
+        if (sTemp.cycleHistory) sTemp.cycleHistory.forEach(sess => simulatedHistory.push(sess));
+        sTemp = { ...sTemp, totalSessionsCount: 12 + (sTemp.cycleHistory?.length || 0), simulatedHistory, paidSessionsCount: (sTemp.paidSessionsCount || 0) };
+      } else if (sTemp.name?.trim().toUpperCase() === "MAYSSAM BOULILA") {
+        const override = [
+          [{ d: "10-déc.", t: "present" }, { d: "16-déc.", t: "present" }, { d: "17-déc.", t: "present" }, { d: "23-déc.", t: "present" }, { d: "24-déc.", t: "present" }, { d: "30-déc.", t: "present" }, { d: "31-déc.", t: "present" }, { d: "13-janv.", t: "present" }],
+          [{ d: "13-janv.", t: "present" }, { d: "14-janv.", t: "present" }, { d: "20-janv.", t: "present" }, { d: "21-janv.", t: "present" }, { d: "27-janv.", t: "present" }, { d: "28-janv.", t: "present" }, { d: "03-févr.", t: "present" }, { d: "04-janv.", t: "present" }],
+          [{ d: "10-févr.", t: "present" }, { d: "11-févr.", t: "present" }, { d: "17-févr.", t: "present" }, { d: "18-févr.", t: "present" }, { d: "24-févr.", t: "present" }, { d: "25-févr.", t: "present" }, { d: "03-mars", t: "present" }, { d: "04-mars", t: "present" }],
+          [{ d: "10-mars", t: "present" }, { d: "11-mars", t: "present" }, { d: "28-mars", t: "present" }, { d: "29-mars", t: "present" }, { d: "31-mars", t: "present" }, { d: "01-avr.", t: "present" }, { d: "07-avr.", t: "present" }, { d: "08-avr.", t: "present" }]
+        ];
+        let simulatedHistory = [];
+        override.forEach(m => m.forEach(s => { if(s) simulatedHistory.push({type: s.t, date: new Date()}) }));
+        if (sTemp.cycleHistory) sTemp.cycleHistory.forEach(sess => simulatedHistory.push(sess));
+        sTemp = { ...sTemp, totalSessionsCount: 32 + (sTemp.cycleHistory?.length || 0), simulatedHistory, paidSessionsCount: (sTemp.paidSessionsCount || 0) };
+      } else if (sTemp.name?.trim().toUpperCase() === "AMENI KARWI") {
+        const override = [
+          [{d:"06-déc.", t:"present"}, {d:"06-déc.", t:"present"}, {d:"13-déc.", t:"present"}, {d:"13-déc.", t:"present"}, {d:"20-déc.", t:"present"}, {d:"20-déc.", t:"present"}, {d:"27-déc.", t:"absent"}, {d:"27-déc.", t:"absent"}],
+          [{d:"03-janv.", t:"absent"}, {d:"03-janv.", t:"absent"}, {d:"10-janv.", t:"present"}, {d:"10-janv.", t:"present"}, {d:"18-janv.", t:"present"}, {d:"18-janv.", t:"present"}, {d:"25-janv.", t:"present"}, {d:"25-janv.", t:"present"}],
+          [{d:"31-janv.", t:"present"}, {d:"31-janv.", t:"present"}, {d:"07-févr.", t:"present"}, {d:"07-févr.", t:"present"}, {d:"14-févr.", t:"present"}, {d:"14-févr.", t:"present"}, {d:"21-févr.", t:"absent"}, {d:"21-févr.", t:"absent"}],
+          [{d:"28-févr.", t:"present"}, {d:"28-févr.", t:"present"}, {d:"07-mars", t:"present"}, {d:"07-mars", t:"present"}, {d:"14-mars", t:"absent"}, {d:"14-mars", t:"absent"}, {d:"28-mars", t:"present"}, {d:"28-mars", t:"present"}],
+          [{d:"04-avr.", t:"present"}, {d:"04-avr.", t:"present"}]
+        ];
+        let simulatedHistory = [];
+        override.forEach(m => m.forEach(s => { if(s) simulatedHistory.push({type: s.t, date: new Date()}) }));
+        if (sTemp.cycleHistory) sTemp.cycleHistory.forEach(sess => simulatedHistory.push(sess));
+        sTemp = { ...sTemp, totalSessionsCount: 34 + (sTemp.cycleHistory?.length || 0), simulatedHistory, paidSessionsCount: (sTemp.paidSessionsCount || 0) };
+      } else if (sTemp.name?.trim().toUpperCase() === "MOUNA DRIRA") {
+        const override = [
+          [{d:"03-janv.", t:"present"}, {d:"06-janv.", t:"present"}, {d:"10-janv.", t:"present"}, {d:"14-janv.", t:"present"}, {d:"17-janv.", t:"present"}, {d:"21-janv.", t:"present"}, {d:"07-févr.", t:"absent"}, {d:"11-févr.", t:"present"}],
+          [{d:"14-févr.", t:"absent"}, {d:"18-févr.", t:"absent"}, {d:"21-févr.", t:"absent"}, {d:"25-févr.", t:"absent"}, {d:"28-févr.", t:"present"}, {d:"04-mars", t:"present"}, {d:"07-mars", t:"absent"}, {d:"11-mars", t:"present"}],
+          [{d:"14-mars", t:"present"}, {d:"25-mars", t:"present"}, {d:"28-mars", t:"present"}, {d:"01-avr.", t:"present"}, {d:"04-avr.", t:"present"}, {d:"08-avr.", t:"present"}]
+        ];
+        let simulatedHistory = [];
+        override.forEach(m => m.forEach(s => { if(s) simulatedHistory.push({type: s.t, date: new Date()}) }));
+        if (sTemp.cycleHistory) sTemp.cycleHistory.forEach(sess => simulatedHistory.push(sess));
+        sTemp = { ...sTemp, totalSessionsCount: 22 + (sTemp.cycleHistory?.length || 0), simulatedHistory, paidSessionsCount: (sTemp.paidSessionsCount || 0) };
+      } else if (sTemp.name?.trim().toUpperCase() === "MARIEM ZOUARI") {
+        const override = [
+          [{d:"05-nov.", t:"present"}, {d:"11-nov.", t:"present"}, {d:"12-nov.", t:"present"}, {d:"18-nov.", t:"present"}, {d:"19-nov.", t:"present"}, {d:"25-nov.", t:"present"}, {d:"26-nov.", t:"present"}, {d:"02-nov.", t:"present"}],
+          [{d:"03-déc.", t:"present"}, {d:"09-déc.", t:"present"}, {d:"10-déc.", t:"present"}, {d:"16-déc.", t:"present"}, {d:"17-déc.", t:"present"}, {d:"23-déc.", t:"present"}, {d:"24-déc.", t:"present"}, {d:"30-déc.", t:"absent"}],
+          [{d:"31-déc.", t:"absent"}, {d:"06-janv.", t:"present"}, {d:"07-janv.", t:"present"}, {d:"13-janv.", t:"absent"}, {d:"14-janv.", t:"absent"}, {d:"20-janv.", t:"present"}, {d:"21-janv.", t:"present"}, {d:"27-janv.", t:"present"}],
+          [{d:"28-janv.", t:"present"}, {d:"03-févr.", t:"present"}, {d:"04-janv.", t:"present"}, {d:"10-févr.", t:"present"}, {d:"11-févr.", t:"present"}, {d:"17-févr.", t:"present"}, {d:"18-févr.", t:"present"}, {d:"24-févr.", t:"present"}],
+          [{d:"25-févr.", t:"present"}, {d:"03-mars", t:"present"}, {d:"04-mars", t:"present"}, {d:"10-mars", t:"present"}, {d:"11-mars", t:"present"}, {d:"24-mars", t:"absent"}, {d:"25-mars", t:"present"}, {d:"31-mars", t:"present"}],
+          [{d:"01-avr.", t:"present"}, {d:"07-avr.", t:"present"}, {d:"08-avr.", t:"present"}]
+        ];
+        let simulatedHistory = [];
+        override.forEach(m => m.forEach(s => { if(s) simulatedHistory.push({type: s.t, date: new Date()}) }));
+        if (sTemp.cycleHistory) sTemp.cycleHistory.forEach(sess => simulatedHistory.push(sess));
+        sTemp = { ...sTemp, totalSessionsCount: 43 + (sTemp.cycleHistory?.length || 0), simulatedHistory, paidSessionsCount: (sTemp.paidSessionsCount || 0) };
+      } else if (sTemp.name?.trim().toUpperCase() === "HALIMA CHMISSI") {
+        const override = [
+          [{d:"22-oct.", t:"present"}, {d:"22-oct.", t:"present"}, {d:"29-oct.", t:"absent"}, {d:"29-oct.", t:"absent"}, {d:"05-nov.", t:"present"}, {d:"05-nov.", t:"present"}, {d:"08-nov.", t:"present"}, {d:"08-nov.", t:"present"}],
+          [{d:"12-nov.", t:"present"}, {d:"12-nov.", t:"present"}, {d:"15-nov.", t:"present"}, {d:"15-nov.", t:"present"}, {d:"19-nov.", t:"absent"}, {d:"19-nov.", t:"absent"}, {d:"22-nov.", t:"absent"}, {d:"22-nov.", t:"absent"}],
+          [{d:"06-déc.", t:"present"}, {d:"06-déc.", t:"present"}, {d:"10-déc.", t:"present"}, {d:"10-déc.", t:"present"}, {d:"13-déc.", t:"present"}, {d:"13-déc.", t:"present"}, {d:"17-déc.", t:"present"}, {d:"17-déc.", t:"present"}],
+          [{d:"20-déc.", t:"present"}, {d:"20-déc.", t:"present"}, {d:"24-déc.", t:"present"}, {d:"24-déc.", t:"present"}, {d:"27-déc.", t:"present"}, {d:"27-déc.", t:"present"}, {d:"31-déc.", t:"present"}, {d:"31-déc.", t:"present"}],
+          [{d:"03-janv.", t:"absent"}, {d:"03-janv.", t:"absent"}, {d:"07-janv.", t:"present"}, {d:"07-janv.", t:"present"}, {d:"10-janv.", t:"present"}, {d:"10-janv.", t:"present"}, {d:"14-janv.", t:"present"}, {d:"14-janv.", t:"present"}],
+          [{d:"21-janv.", t:"present"}, {d:"21-janv.", t:"present"}, {d:"28-janv.", t:"present"}, {d:"28-janv.", t:"present"}, {d:"04-févr.", t:"present"}, {d:"04-févr.", t:"present"}, {d:"11-févr.", t:"present"}, {d:"11-févr.", t:"present"}],
+          [{d:"21-févr.", t:"present"}, {d:"21-févr.", t:"present"}, {d:"25-févr.", t:"present"}, {d:"25-févr.", t:"present"}, {d:"28-févr.", t:"present"}, {d:"28-févr.", t:"present"}, {d:"03-mars", t:"present"}, {d:"04-mars", t:"present"}], 
+          [{d:"04-mars", t:"present"}, {d:"07-mars", t:"present"}, {d:"07-mars", t:"present"}, {d:"10-mars", t:"present"}, {d:"11-mars", t:"present"}, {d:"11-mars", t:"present"}, {d:"14-mars", t:"present"}, {d:"14-mars", t:"present"}],
+          [{d:"25-mars", t:"absent"}, {d:"25-mars", t:"absent"}, {d:"28-mars", t:"absent"}, {d:"28-mars", t:"absent"}, {d:"08-avr.", t:"present"}, {d:"08-avr.", t:"present"}]
+        ];
+        let simulatedHistory = [];
+        override.forEach(m => m.forEach(s => { if(s) simulatedHistory.push({type: s.t, date: new Date()}) }));
+        if (sTemp.cycleHistory) sTemp.cycleHistory.forEach(sess => simulatedHistory.push(sess));
+        sTemp = { ...sTemp, totalSessionsCount: 70 + (sTemp.cycleHistory?.length || 0), simulatedHistory, paidSessionsCount: (sTemp.paidSessionsCount || 0) };
+      } else if (sTemp.name?.trim().toUpperCase() === "MAISSA MALLEK") {
+        const override = [
+          [{d:"14-oct.", t:"present"}, {d:"15-oct.", t:"present"}, {d:"21-oct.", t:"present"}, {d:"22-oct.", t:"present"}, {d:"28-oct.", t:"present"}, {d:"29-oct.", t:"present"}, {d:"04-nov.", t:"present"}, {d:"05-nov.", t:"present"}],
+          [{d:"11-nov.", t:"present"}, {d:"12-nov.", t:"present"}, {d:"18-nov.", t:"present"}, {d:"25-nov.", t:"present"}, {d:"26-nov.", t:"present"}, {d:"02-nov.", t:"present"}, {d:"03-déc.", t:"present"}, {d:"09-déc.", t:"absent"}],
+          [{d:"10-déc.", t:"absent"}, {d:"16-déc.", t:"present"}, {d:"17-déc.", t:"present"}, {d:"23-déc.", t:"present"}, {d:"24-déc.", t:"present"}, {d:"30-déc.", t:"present"}, {d:"31-déc.", t:"absent"}, {d:"06-janv.", t:"present"}],
+          [{d:"07-janv.", t:"absent"}, {d:"13-janv.", t:"present"}, {d:"14-janv.", t:"present"}, {d:"20-janv.", t:"present"}, {d:"21-janv.", t:"present"}, {d:"27-janv.", t:"present"}, {d:"03-févr.", t:"present"}, {d:"04-févr.", t:"present"}],
+          [{d:"10-févr.", t:"present"}, {d:"11-févr.", t:"present"}, {d:"17-févr.", t:"present"}, {d:"18-févr.", t:"present"}, {d:"03-mars", t:"present"}, {d:"04-mars", t:"present"}, {d:"10-mars", t:"present"}, {d:"11-mars", t:"present"}],
+          [{d:"24-mars", t:"absent"}, {d:"25-mars", t:"absent"}, {d:"31-mars", t:"present"}, {d:"01-avr.", t:"present"}, {d:"07-avr.", t:"present"}]
+        ];
+        let simulatedHistory = [];
+        override.forEach(m => m.forEach(s => { if(s) simulatedHistory.push({type: s.t, date: new Date()}) }));
+        if (sTemp.cycleHistory) sTemp.cycleHistory.forEach(sess => simulatedHistory.push(sess));
+        sTemp = { ...sTemp, totalSessionsCount: 45 + (sTemp.cycleHistory?.length || 0), simulatedHistory, paidSessionsCount: (sTemp.paidSessionsCount || 0) };
+      } else if (sTemp.name?.trim().toUpperCase() === "SOUAD HAMZA") {
+        const override = [
+          [{d:"11-nov.", t:"present"}, {d:"12-nov.", t:"present"}, {d:"18-nov.", t:"present"}, {d:"19-nov.", t:"present"}, {d:"25-nov.", t:"present"}, {d:"26-nov.", t:"present"}, {d:"02-nov.", t:"present"}, {d:"03-déc.", t:"present"}],
+          [{d:"09-déc.", t:"present"}, {d:"10-déc.", t:"present"}, {d:"16-déc.", t:"present"}, {d:"17-déc.", t:"present"}, {d:"23-déc.", t:"absent"}, {d:"24-déc.", t:"present"}, {d:"30-déc.", t:"present"}, {d:"31-déc.", t:"present"}],
+          [{d:"06-janv.", t:"present"}, {d:"07-janv.", t:"absent"}, {d:"13-janv.", t:"present"}, {d:"14-janv.", t:"present"}, {d:"20-janv.", t:"present"}, {d:"21-janv.", t:"present"}, {d:"27-janv.", t:"present"}, {d:"28-janv.", t:"present"}],
+          [{d:"03-févr.", t:"present"}, {d:"04-févr.", t:"present"}, {d:"10-févr.", t:"absent"}, {d:"11-févr.", t:"present"}, {d:"17-févr.", t:"present"}, {d:"18-févr.", t:"present"}, {d:"24-févr.", t:"present"}, {d:"25-févr.", t:"present"}],
+          [{d:"03-mars", t:"present"}, {d:"04-mars", t:"present"}, {d:"10-mars", t:"present"}, {d:"11-mars", t:"present"}, {d:"28-mars", t:"present"}, {d:"28-mars", t:"present"}, {d:"31-mars", t:"present"}, {d:"01-avr.", t:"present"}],
+          [{d:"07-avr.", t:"present"}, {d:"08-avr.", t:"present"}]
+        ];
+        let simulatedHistory = [];
+        override.forEach(m => m.forEach(s => { if(s) simulatedHistory.push({type: s.t, date: new Date()}) }));
+        if (sTemp.cycleHistory) sTemp.cycleHistory.forEach(sess => simulatedHistory.push(sess));
+        sTemp = { ...sTemp, totalSessionsCount: 42 + (sTemp.cycleHistory?.length || 0), simulatedHistory, paidSessionsCount: (sTemp.paidSessionsCount || 0) };
+      } else if (sTemp.name?.trim().toUpperCase() === "SOUHIR GOMRI") {
+        const override = [
+          [{d:"14-oct.", t:"present"}, {d:"15-oct.", t:"present"}, {d:"21-oct.", t:"present"}, {d:"22-oct.", t:"absent"}, {d:"28-oct.", t:"present"}, {d:"29-oct.", t:"present"}, {d:"29-oct.", t:"present"}, {d:"04-nov.", t:"present"}],
+          [{d:"11-nov.", t:"present"}, {d:"15-nov.", t:"present"}, {d:"18-nov.", t:"present"}, {d:"19-nov.", t:"present"}, {d:"25-nov.", t:"absent"}, {d:"26-nov.", t:"present"}, {d:"02-nov.", t:"present"}, {d:"03-déc.", t:"present"}],
+          [{d:"09-déc.", t:"present"}, {d:"10-déc.", t:"present"}, {d:"16-déc.", t:"present"}, {d:"17-déc.", t:"present"}, {d:"23-déc.", t:"present"}, {d:"24-déc.", t:"present"}, {d:"30-déc.", t:"present"}, {d:"31-déc.", t:"absent"}],
+          [{d:"03-janv.", t:"present"}, {d:"06-janv.", t:"present"}, {d:"07-janv.", t:"absent"}, {d:"13-janv.", t:"present"}, {d:"14-janv.", t:"present"}, {d:"20-janv.", t:"present"}, {d:"21-janv.", t:"present"}, {d:"27-janv.", t:"present"}],
+          [{d:"03-janv.", t:"absent"}, {d:"04-févr.", t:"present"}, {d:"10-févr.", t:"absent"}, {d:"11-févr.", t:"absent"}, {d:"17-févr.", t:"present"}, {d:"18-févr.", t:"present"}, {d:"24-févr.", t:"absent"}, {d:"03-mars", t:"present"}],
+          [{d:"04-mars", t:"present"}, {d:"10-mars", t:"present"}, {d:"11-mars", t:"present"}, {d:"24-mars", t:"absent"}, {d:"25-mars", t:"absent"}, {d:"31-mars", t:"absent"}, {d:"01-avr.", t:"absent"}, {d:"07-avr.", t:"absent"}]
+        ];
+        let simulatedHistory = [];
+        override.forEach(m => m.forEach(s => { if(s) simulatedHistory.push({type: s.t, date: new Date()}) }));
+        if (sTemp.cycleHistory) sTemp.cycleHistory.forEach(sess => simulatedHistory.push(sess));
+        sTemp = { ...sTemp, totalSessionsCount: 48 + (sTemp.cycleHistory?.length || 0), simulatedHistory, paidSessionsCount: (sTemp.paidSessionsCount || 0) };
+      } else if (sTemp.name?.trim().toUpperCase() === "RAWYA CHTOUROU") {
+        const override = [
+          [{d:"07-oct.", t:"present"}, {d:"11-oct.", t:"present"}, {d:"14-oct.", t:"present"}, {d:"18-oct.", t:"present"}, {d:"21-oct.", t:"present"}, {d:"25-oct.", t:"present"}, {d:"28-oct.", t:"present"}, {d:"01-nov.", t:"present"}],
+          [{d:"04-nov.", t:"present"}, {d:"08-nov.", t:"absent"}, {d:"11-nov.", t:"present"}, {d:"15-nov.", t:"present"}, {d:"18-nov.", t:"present"}, {d:"19-nov.", t:"absent"}, {d:"25-nov.", t:"present"}, {d:"26-nov.", t:"present"}],
+          [{d:"02-nov.", t:"present"}, {d:"09-déc.", t:"present"}, {d:"10-déc.", t:"present"}, {d:"16-déc.", t:"present"}, {d:"20-déc.", t:"present"}, {d:"23-déc.", t:"present"}, {d:"27-déc.", t:"present"}, {d:"30-déc.", t:"present"}],
+          [{d:"03-janv.", t:"present"}, {d:"06-janv.", t:"present"}, {d:"10-janv.", t:"present"}, {d:"13-janv.", t:"present"}, {d:"17-janv.", t:"present"}, {d:"20-janv.", t:"present"}, {d:"24-janv.", t:"present"}, {d:"27-janv.", t:"present"}],
+          [{d:"31-janv.", t:"present"}, {d:"07-févr.", t:"absent"}, {d:"10-févr.", t:"present"}, {d:"14-févr.", t:"absent"}, {d:"17-févr.", t:"present"}, {d:"21-févr.", t:"present"}, {d:"24-févr.", t:"present"}, {d:"28-févr.", t:"present"}],
+          [{d:"03-mars", t:"absent"}, {d:"07-mars", t:"present"}, {d:"10-mars", t:"absent"}, {d:"14-mars", t:"absent"}, {d:"25-mars", t:"absent"}, {d:"28-mars", t:"present"}, {d:"31-mars", t:"absent"}, {d:"04-avr.", t:"present"}],
+          [{d:"07-avr.", t:"present"}]
+        ];
+        let simulatedHistory = [];
+        override.forEach(m => m.forEach(s => { if(s) simulatedHistory.push({type: s.t, date: new Date()}) }));
+        if (sTemp.cycleHistory) sTemp.cycleHistory.forEach(sess => simulatedHistory.push(sess));
+        sTemp = { ...sTemp, totalSessionsCount: 49 + (sTemp.cycleHistory?.length || 0), simulatedHistory, paidSessionsCount: (sTemp.paidSessionsCount || 0) };
+      } else if (sTemp.name?.trim().toUpperCase() === "MARIEM BOUJELBEN") {
+        const override = [
+          [{d:"01-oct.", t:"present"}, {d:"04-oct.", t:"present"}, {d:"08-oct.", t:"present"}, {d:"08-oct.", t:"present"}, {d:"15-oct.", t:"present"}, {d:"15-oct.", t:"present"}, {d:"22-oct.", t:"present"}, {d:"22-oct.", t:"present"}],
+          [{d:"29-oct.", t:"present"}, {d:"29-oct.", t:"present"}, {d:"05-nov.", t:"present"}, {d:"05-nov.", t:"present"}, {d:"12-nov.", t:"present"}, {d:"12-nov.", t:"present"}, {d:"19-nov.", t:"present"}, {d:"19-nov.", t:"present"}],
+          [{d:"26-nov.", t:"present"}, {d:"26-nov.", t:"present"}, {d:"03-déc.", t:"present"}, {d:"03-déc.", t:"present"}, {d:"10-déc.", t:"present"}, {d:"10-déc.", t:"present"}, {d:"17-déc.", t:"present"}, {d:"17-déc.", t:"absent"}],
+          [{d:"24-déc.", t:"present"}, {d:"24-déc.", t:"present"}, {d:"31-déc.", t:"present"}, {d:"31-déc.", t:"present"}, {d:"07-janv.", t:"absent"}, {d:"07-janv.", t:"absent"}, {d:"21-janv.", t:"present"}, {d:"21-janv.", t:"present"}],
+          [{d:"28-janv.", t:"present"}, {d:"28-janv.", t:"present"}, {d:"04-févr.", t:"present"}, {d:"04-févr.", t:"present"}, {d:"11-févr.", t:"absent"}, {d:"11-févr.", t:"present"}, {d:"18-févr.", t:"present"}, {d:"18-févr.", t:"present"}],
+          [{d:"25-févr.", t:"present"}, {d:"25-févr.", t:"present"}, {d:"04-mars", t:"present"}, {d:"04-mars", t:"present"}, {d:"11-mars", t:"present"}, {d:"11-mars", t:"present"}, {d:"25-mars", t:"present"}, {d:"25-mars", t:"present"}],
+          [{d:"01-avr.", t:"present"}, {d:"01-avr.", t:"present"}, {d:"08-avr.", t:"present"}, {d:"08-avr.", t:"present"}]
+        ];
+        let simulatedHistory = [];
+        override.forEach(m => m.forEach(s => { if(s) simulatedHistory.push({type: s.t, date: new Date()}) }));
+        if (sTemp.cycleHistory) sTemp.cycleHistory.forEach(sess => simulatedHistory.push(sess));
+        sTemp = { ...sTemp, totalSessionsCount: 52 + (sTemp.cycleHistory?.length || 0), simulatedHistory, paidSessionsCount: (sTemp.paidSessionsCount || 0) };
+      } else if (sTemp.name?.trim().toUpperCase() === "WAFA HAMEDI") {
+        const override = [
+          [{d:"04-oct.", t:"present"}, {d:"08-oct.", t:"present"}, {d:"11-oct.", t:"present"}, {d:"15-oct.", t:"present"}, {d:"18-oct.", t:"present"}, {d:"22-oct.", t:"present"}, {d:"25-oct.", t:"present"}, {d:"29-oct.", t:"present"}],
+          [{d:"01-nov.", t:"present"}, {d:"05-nov.", t:"absent"}, {d:"08-nov.", t:"present"}, {d:"12-nov.", t:"present"}, {d:"15-nov.", t:"present"}, {d:"19-nov.", t:"present"}, {d:"22-nov.", t:"present"}, {d:"26-nov.", t:"present"}],
+          [{d:"29-nov.", t:"present"}, {d:"03-déc.", t:"present"}, {d:"06-déc.", t:"present"}, {d:"10-déc.", t:"present"}, {d:"13-déc.", t:"present"}, {d:"17-déc.", t:"present"}, {d:"20-déc.", t:"present"}, {d:"24-déc.", t:"present"}],
+          [{d:"27-déc.", t:"present"}, {d:"31-déc.", t:"absent"}, {d:"03-janv.", t:"present"}, {d:"07-janv.", t:"present"}, {d:"10-janv.", t:"present"}, {d:"14-janv.", t:"present"}, {d:"17-janv.", t:"present"}, {d:"24-janv.", t:"present"}],
+          [{d:"24-janv.", t:"present"}, {d:"31-janv.", t:"present"}, {d:"04-févr.", t:"present"}, {d:"07-févr.", t:"present"}, {d:"11-févr.", t:"present"}, {d:"14-févr.", t:"present"}, {d:"18-févr.", t:"present"}, {d:"21-févr.", t:"present"}],
+          [{d:"25-févr.", t:"present"}, {d:"01-avr.", t:"present"}, {d:"04-avr.", t:"present"}, {d:"08-avr.", t:"present"}]
+        ];
+        let simulatedHistory = [];
+        override.forEach(m => m.forEach(s => { if(s) simulatedHistory.push({type: s.t, date: new Date()}) }));
+        if (sTemp.cycleHistory) sTemp.cycleHistory.forEach(sess => simulatedHistory.push(sess));
+        sTemp = { ...sTemp, totalSessionsCount: 44 + (sTemp.cycleHistory?.length || 0), simulatedHistory, paidSessionsCount: (sTemp.paidSessionsCount || 0) };
+      } else if (sTemp.name?.trim().toUpperCase() === "RANIA TAKTAK") {
+        const override = [
+          [{d:"07-oct.", t:"present"}, {d:"11-oct.", t:"present"}, {d:"14-oct.", t:"present"}, {d:"18-oct.", t:"present"}, {d:"21-oct.", t:"present"}, {d:"25-oct.", t:"present"}, {d:"28-oct.", t:"present"}, {d:"01-nov.", t:"present"}],
+          [{d:"04-nov.", t:"present"}, {d:"08-nov.", t:"present"}, {d:"11-nov.", t:"present"}, {d:"15-nov.", t:"present"}, {d:"18-nov.", t:"present"}, {d:"22-nov.", t:"present"}, {d:"25-nov.", t:"absent"}, {d:"29-nov.", t:"present"}],
+          [{d:"02-déc.", t:"present"}, {d:"06-déc.", t:"present"}, {d:"13-déc.", t:"present"}, {d:"16-déc.", t:"present"}, {d:"20-déc.", t:"absent"}, {d:"23-déc.", t:"absent"}, {d:"27-déc.", t:"present"}, {d:"30-déc.", t:"present"}],
+          [{d:"03-janv.", t:"present"}, {d:"06-janv.", t:"present"}, {d:"10-janv.", t:"present"}, {d:"13-janv.", t:"present"}, {d:"17-janv.", t:"present"}, {d:"20-janv.", t:"present"}, {d:"24-janv.", t:"present"}, {d:"27-janv.", t:"present"}],
+          [{d:"31-janv.", t:"present"}, {d:"03-févr.", t:"absent"}, {d:"07-févr.", t:"present"}, {d:"10-févr.", t:"present"}, {d:"14-févr.", t:"present"}, {d:"17-févr.", t:"present"}, {d:"21-févr.", t:"absent"}, {d:"24-févr.", t:"present"}],
+          [{d:"28-févr.", t:"present"}, {d:"03-mars", t:"absent"}, {d:"07-mars", t:"present"}, {d:"10-mars", t:"present"}, {d:"14-mars", t:"present"}, {d:"24-mars", t:"present"}, {d:"28-mars", t:"present"}, {d:"31-mars", t:"present"}],
+          [{d:"04-avr.", t:"absent"}, {d:"07-avr.", t:"present"}]
+        ];
+        let simulatedHistory = [];
+        override.forEach(m => m.forEach(s => { if(s) simulatedHistory.push({type: s.t, date: new Date()}) }));
+        if (sTemp.cycleHistory) sTemp.cycleHistory.forEach(sess => simulatedHistory.push(sess));
+        sTemp = { ...sTemp, totalSessionsCount: 50 + (sTemp.cycleHistory?.length || 0), simulatedHistory, paidSessionsCount: (sTemp.paidSessionsCount || 0) };
+      } else if (sTemp.name?.trim().toUpperCase() === "CHAYMA AYDI") {
+        const override = [
+          [{d:"01-oct.", t:"present"}, {d:"01-oct.", t:"present"}, {d:"04-oct.", t:"present"}, {d:"04-oct.", t:"present"}, {d:"08-oct.", t:"present"}, {d:"08-oct.", t:"present"}, {d:"11-oct.", t:"present"}, {d:"11-oct.", t:"present"}],
+          [{d:"15-oct.", t:"present"}, {d:"15-oct.", t:"present"}, {d:"18-oct.", t:"present"}, {d:"18-oct.", t:"present"}, {d:"22-oct.", t:"present"}, {d:"22-oct.", t:"present"}, {d:"25-oct.", t:"absent"}, {d:"25-oct.", t:"absent"}],
+          [{d:"29-oct.", t:"present"}, {d:"29-oct.", t:"present"}, {d:"01-nov.", t:"present"}, {d:"01-nov.", t:"present"}, {d:"05-nov.", t:"present"}, {d:"05-nov.", t:"present"}, {d:"08-nov.", t:"present"}, {d:"08-nov.", t:"present"}],
+          [{d:"12-nov.", t:"present"}, {d:"12-nov.", t:"present"}, {d:"15-nov.", t:"present"}, {d:"15-nov.", t:"present"}, {d:"19-nov.", t:"present"}, {d:"19-nov.", t:"present"}, {d:"22-nov.", t:"present"}, {d:"22-nov.", t:"present"}],
+          [{d:"26-nov.", t:"present"}, {d:"26-nov.", t:"present"}, {d:"29-nov.", t:"present"}, {d:"29-nov.", t:"present"}, {d:"03-déc.", t:"present"}, {d:"03-déc.", t:"present"}, {d:"06-déc.", t:"present"}, {d:"06-déc.", t:"present"}],
+          [{d:"10-déc.", t:"present"}, {d:"10-déc.", t:"present"}, {d:"13-déc.", t:"present"}, {d:"13-déc.", t:"present"}, {d:"17-déc.", t:"present"}, {d:"17-déc.", t:"present"}, {d:"20-déc.", t:"present"}, {d:"20-déc.", t:"present"}],
+          [{d:"24-déc.", t:"present"}, {d:"24-déc.", t:"present"}, {d:"27-déc.", t:"present"}, {d:"27-déc.", t:"present"}, {d:"31-déc.", t:"absent"}, {d:"31-déc.", t:"absent"}, {d:"03-janv.", t:"present"}, {d:"03-janv.", t:"present"}],
+          [{d:"07-janv.", t:"present"}, {d:"07-janv.", t:"present"}, {d:"10-janv.", t:"present"}, {d:"10-janv.", t:"present"}, {d:"14-janv.", t:"absent"}, {d:"14-janv.", t:"absent"}, {d:"17-janv.", t:"present"}, {d:"17-janv.", t:"present"}],
+          [{d:"21-janv.", t:"present"}, {d:"21-janv.", t:"present"}, {d:"24-janv.", t:"present"}, {d:"24-janv.", t:"present"}, {d:"28-janv.", t:"present"}, {d:"28-janv.", t:"present"}, {d:"31-janv.", t:"present"}, {d:"31-janv.", t:"present"}],
+          [{d:"04-févr.", t:"present"}, {d:"04-févr.", t:"present"}, {d:"07-févr.", t:"present"}, {d:"07-févr.", t:"present"}, {d:"11-févr.", t:"present"}, {d:"11-févr.", t:"present"}, {d:"14-févr.", t:"absent"}, {d:"14-févr.", t:"absent"}],
+          [{d:"18-févr.", t:"present"}, {d:"18-févr.", t:"present"}, {d:"21-févr.", t:"present"}, {d:"21-févr.", t:"present"}, {d:"25-févr.", t:"present"}, {d:"25-févr.", t:"present"}, {d:"28-févr.", t:"absent"}, {d:"28-févr.", t:"absent"}],
+          [{d:"04-mars", t:"present"}, {d:"04-mars", t:"present"}, {d:"07-mars", t:"present"}, {d:"07-mars", t:"present"}, {d:"11-mars", t:"present"}, {d:"11-mars", t:"present"}, {d:"14-mars", t:"absent"}, {d:"14-mars", t:"absent"}],
+          [{d:"01-avr.", t:"present"}, {d:"01-avr.", t:"present"}, {d:"04-avr.", t:"present"}, {d:"04-avr.", t:"present"}, {d:"08-avr.", t:"present"}, {d:"08-avr.", t:"present"}]
+        ];
+        let simulatedHistory = [];
+        override.forEach(m => m.forEach(s => { if(s) simulatedHistory.push({type: s.t, date: new Date()}) }));
+        if (sTemp.cycleHistory) sTemp.cycleHistory.forEach(sess => simulatedHistory.push(sess));
+        sTemp = { ...sTemp, totalSessionsCount: 102 + (sTemp.cycleHistory?.length || 0), simulatedHistory, paidSessionsCount: (sTemp.paidSessionsCount || 0) };
+      } else if (sTemp.name?.trim().toUpperCase() === "FATMA BEN AYED") {
+        const override = [
+          [{d:"01-oct.", t:"present"}, {d:"07-oct.", t:"present"}, {d:"08-oct.", t:"present"}, {d:"14-oct.", t:"present"}, {d:"15-oct.", t:"present"}, {d:"21-oct.", t:"present"}, {d:"22-oct.", t:"present"}, {d:"28-oct.", t:"present"}],
+          [{d:"29-oct.", t:"present"}, {d:"04-nov.", t:"present"}, {d:"05-nov.", t:"present"}, {d:"11-nov.", t:"present"}, {d:"12-nov.", t:"present"}, {d:"18-nov.", t:"present"}, {d:"19-nov.", t:"absent"}, {d:"25-nov.", t:"present"}],
+          [{d:"26-nov.", t:"present"}, {d:"02-déc.", t:"present"}, {d:"03-déc.", t:"present"}, {d:"09-déc.", t:"present"}, {d:"10-déc.", t:"present"}, {d:"16-déc.", t:"present"}, {d:"17-déc.", t:"present"}, {d:"23-déc.", t:"present"}],
+          [{d:"24-déc.", t:"present"}, {d:"30-déc.", t:"present"}, {d:"31-déc.", t:"present"}, {d:"03-janv.", t:"present"}, {d:"06-janv.", t:"present"}, {d:"07-janv.", t:"present"}, {d:"13-janv.", t:"present"}, {d:"14-janv.", t:"present"}],
+          [{d:"20-janv.", t:"present"}, {d:"21-janv.", t:"present"}, {d:"27-janv.", t:"present"}, {d:"28-janv.", t:"present"}, {d:"03-févr.", t:"present"}, {d:"04-févr.", t:"present"}, {d:"10-févr.", t:"present"}, {d:"11-févr.", t:"absent"}],
+          [{d:"31-mars", t:"present"}]
+        ];
+        let simulatedHistory = [];
+        override.forEach(m => m.forEach(s => { if(s) simulatedHistory.push({type: s.t, date: new Date()}) }));
+        if (sTemp.cycleHistory) sTemp.cycleHistory.forEach(sess => simulatedHistory.push(sess));
+        sTemp = { ...sTemp, totalSessionsCount: 41 + (sTemp.cycleHistory?.length || 0), simulatedHistory, paidSessionsCount: (sTemp.paidSessionsCount || 0) };
+      } else if (sTemp.name?.trim().toUpperCase() === "RIHEM HAMDI") {
+        const override = [
+          [{d:"27-sept.", t:"present"}, {d:"04-oct.", t:"present"}, {d:"11-oct.", t:"present"}, {d:"11-oct.", t:"present"}, {d:"18-oct.", t:"present"}, {d:"18-oct.", t:"present"}, {d:"25-oct.", t:"present"}, {d:"25-oct.", t:"present"}],
+          [{d:"01-nov.", t:"present"}, {d:"01-nov.", t:"present"}, {d:"08-nov.", t:"present"}, {d:"08-nov.", t:"present"}, {d:"15-nov.", t:"present"}, {d:"15-nov.", t:"present"}, {d:"22-nov.", t:"present"}, {d:"22-nov.", t:"present"}],
+          [{d:"29-nov.", t:"present"}, {d:"29-nov.", t:"present"}, {d:"06-déc.", t:"present"}, {d:"06-déc.", t:"present"}, {d:"13-déc.", t:"present"}, {d:"13-déc.", t:"present"}, {d:"20-déc.", t:"present"}, {d:"27-déc.", t:"present"}],
+          [{d:"03-janv.", t:"present"}, {d:"03-déc.", t:"present"}, {d:"10-janv.", t:"absent"}, {d:"10-janv.", t:"absent"}, {d:"17-janv.", t:"present"}, {d:"17-janv.", t:"present"}, {d:"24-janv.", t:"present"}, {d:"24-janv.", t:"present"}],
+          [{d:"31-janv.", t:"present"}, {d:"31-janv.", t:"present"}, {d:"07-févr.", t:"present"}, {d:"07-févr.", t:"present"}, {d:"15-févr.", t:"present"}, {d:"15-févr.", t:"present"}, {d:"21-févr.", t:"present"}, {d:"21-févr.", t:"present"}],
+          [{d:"08-mars", t:"present"}, {d:"08-mars", t:"present"}, {d:"14-mars", t:"absent"}, {d:"14-mars", t:"absent"}, {d:"28-mars", t:"present"}, {d:"28-mars", t:"present"}, {d:"04-avr.", t:"present"}, {d:"04-avr.", t:"present"}]
+        ];
+        let simulatedHistory = [];
+        override.forEach(m => m.forEach(s => { if(s) simulatedHistory.push({type: s.t, date: new Date()}) }));
+        if (sTemp.cycleHistory) sTemp.cycleHistory.forEach(sess => simulatedHistory.push(sess));
+        sTemp = { ...sTemp, totalSessionsCount: 48 + (sTemp.cycleHistory?.length || 0), simulatedHistory, paidSessionsCount: (sTemp.paidSessionsCount || 0) };
+      } else if (sTemp.name?.trim().toUpperCase() === "HIBA ALLAH CHALBI") {
+        const override = [
+          [{d:"23-sept.", t:"present"}, {d:"24-sept.", t:"present"}, {d:"30-sept.", t:"present"}, {d:"01-oct.", t:"present"}, {d:"07-oct.", t:"present"}, {d:"08-oct.", t:"present"}, {d:"14-oct.", t:"present"}, {d:"15-oct.", t:"present"}],
+          [{d:"21-oct.", t:"present"}, {d:"22-oct.", t:"absent"}, {d:"28-oct.", t:"present"}, {d:"29-oct.", t:"present"}, {d:"04-nov.", t:"present"}, {d:"05-nov.", t:"present"}, {d:"11-nov.", t:"present"}, {d:"12-nov.", t:"present"}],
+          [{d:"15-nov.", t:"present"}, {d:"18-nov.", t:"present"}, {d:"22-nov.", t:"present"}, {d:"25-nov.", t:"present"}, {d:"29-nov.", t:"absent"}, {d:"02-nov.", t:"absent"}, {d:"06-déc.", t:"present"}, {d:"09-déc.", t:"present"}],
+          [{d:"13-déc.", t:"present"}, {d:"16-déc.", t:"absent"}, {d:"20-déc.", t:"present"}, {d:"23-déc.", t:"present"}, {d:"27-déc.", t:"present"}, {d:"30-déc.", t:"present"}, {d:"03-janv.", t:"present"}, {d:"06-janv.", t:"present"}],
+          [{d:"10-janv.", t:"present"}, {d:"13-janv.", t:"present"}, {d:"17-janv.", t:"absent"}, {d:"20-janv.", t:"present"}, {d:"24-janv.", t:"present"}, {d:"27-janv.", t:"present"}, {d:"31-janv.", t:"absent"}, {d:"03-févr.", t:"absent"}],
+          [{d:"07-févr.", t:"absent"}, {d:"10-févr.", t:"present"}, {d:"14-févr.", t:"absent"}, {d:"17-févr.", t:"absent"}, {d:"21-févr.", t:"absent"}, {d:"24-févr.", t:"present"}, {d:"28-févr.", t:"absent"}, {d:"03-mars", t:"present"}],
+          [{d:"07-mars", t:"absent"}, {d:"10-mars", t:"present"}, {d:"11-mars", t:"present"}, {d:"14-mars", t:"present"}, {d:"24-mars", t:"absent"}, {d:"25-mars", t:"absent"}, {d:"31-mars", t:"present"}, {d:"01-avr.", t:"present"}],
+          [{d:"07-avr.", t:"present"}, {d:"08-avr.", t:"present"}]
+        ];
+        let simulatedHistory = [];
+        override.forEach(m => m.forEach(s => { if(s) simulatedHistory.push({type: s.t, date: new Date()}) }));
+        if (sTemp.cycleHistory) sTemp.cycleHistory.forEach(sess => simulatedHistory.push(sess));
+        sTemp = { ...sTemp, totalSessionsCount: 58 + (sTemp.cycleHistory?.length || 0), simulatedHistory, paidSessionsCount: (sTemp.paidSessionsCount || 0) };
+      } else if (sTemp.name?.trim().toUpperCase() === "HAJER NEJI") {
+        const override = [
+          [{d:"16-sept.", t:"present"}, {d:"17-sept.", t:"present"}, {d:"23-sept.", t:"absent"}, {d:"24-sept.", t:"present"}, {d:"30-sept.", t:"present"}, {d:"01-oct.", t:"present"}, {d:"07-oct.", t:"present"}, {d:"08-oct.", t:"present"}],
+          [{d:"14-oct.", t:"present"}, {d:"15-oct.", t:"present"}, {d:"21-oct.", t:"present"}, {d:"22-oct.", t:"present"}, {d:"28-oct.", t:"present"}, {d:"29-oct.", t:"present"}, {d:"04-nov.", t:"absent"}, {d:"05-nov.", t:"present"}],
+          [{d:"11-nov.", t:"absent"}, {d:"12-nov.", t:"absent"}, {d:"18-nov.", t:"present"}, {d:"19-nov.", t:"absent"}, {d:"25-nov.", t:"absent"}, {d:"26-nov.", t:"absent"}, {d:"02-nov.", t:"present"}, {d:"03-déc.", t:"present"}],
+          [{d:"09-déc.", t:"present"}, {d:"10-déc.", t:"present"}, {d:"16-déc.", t:"absent"}, {d:"17-déc.", t:"present"}, {d:"23-déc.", t:"absent"}, {d:"24-déc.", t:"absent"}, {d:"30-déc.", t:"present"}, {d:"31-déc.", t:"absent"}],
+          [{d:"06-janv.", t:"present"}, {d:"07-janv.", t:"present"}, {d:"13-janv.", t:"present"}, {d:"14-janv.", t:"absent"}, {d:"20-janv.", t:"present"}, {d:"21-janv.", t:"present"}, {d:"27-janv.", t:"present"}, {d:"28-janv.", t:"present"}],
+          [{d:"03-févr.", t:"present"}, {d:"04-févr.", t:"present"}, {d:"10-févr.", t:"present"}, {d:"11-févr.", t:"present"}, {d:"03-mars", t:"present"}, {d:"04-mars", t:"present"}, {d:"10-mars", t:"present"}, {d:"11-mars", t:"absent"}],
+          [{d:"24-mars", t:"present"}, {d:"25-mars", t:"present"}, {d:"31-mars", t:"present"}, {d:"01-avr.", t:"absent"}, {d:"07-avr.", t:"present"}, {d:"08-avr.", t:"present"}]
+        ];
+        let simulatedHistory = [];
+        override.forEach(m => m.forEach(s => { if(s) simulatedHistory.push({type: s.t, date: new Date()}) }));
+        if (sTemp.cycleHistory) sTemp.cycleHistory.forEach(sess => simulatedHistory.push(sess));
+        sTemp = { ...sTemp, totalSessionsCount: 54 + (sTemp.cycleHistory?.length || 0), simulatedHistory, paidSessionsCount: (sTemp.paidSessionsCount || 0) };
+      } else if (sTemp.name?.trim().toUpperCase() === "HANA ABASSI") {
+        const override = [
+          [{d:"30-sept.", t:"present"}, {d:"07-oct.", t:"present"}, {d:"08-oct.", t:"present"}, {d:"14-oct.", t:"present"}, {d:"15-oct.", t:"absent"}, {d:"21-oct.", t:"present"}, {d:"22-oct.", t:"present"}, {d:"28-oct.", t:"absent"}],
+          [{d:"29-oct.", t:"present"}, {d:"04-nov.", t:"present"}, {d:"05-nov.", t:"absent"}, {d:"11-nov.", t:"present"}, {d:"12-nov.", t:"present"}, {d:"18-nov.", t:"present"}, {d:"19-nov.", t:"absent"}, {d:"25-nov.", t:"present"}],
+          [{d:"26-nov.", t:"present"}, {d:"02-nov.", t:"present"}, {d:"03-déc.", t:"absent"}, {d:"09-déc.", t:"present"}, {d:"10-déc.", t:"present"}, {d:"16-déc.", t:"absent"}, {d:"17-déc.", t:"present"}, {d:"23-déc.", t:"absent"}],
+          [{d:"24-déc.", t:"present"}, {d:"30-déc.", t:"present"}, {d:"31-déc.", t:"present"}, {d:"06-janv.", t:"present"}, {d:"07-janv.", t:"present"}, {d:"13-janv.", t:"present"}, {d:"14-janv.", t:"present"}, {d:"20-janv.", t:"present"}],
+          [{d:"21-janv.", t:"present"}, {d:"27-janv.", t:"present"}, {d:"28-janv.", t:"present"}, {d:"17-févr.", t:"present"}, {d:"18-févr.", t:"present"}, {d:"25-févr.", t:"present"}, {d:"03-mars", t:"present"}, {d:"04-mars", t:"absent"}]
+        ];
+        let simulatedHistory = [];
+        override.forEach(m => m.forEach(s => { if(s) simulatedHistory.push({type: s.t, date: new Date()}) }));
+        if (sTemp.cycleHistory) sTemp.cycleHistory.forEach(sess => simulatedHistory.push(sess));
+        sTemp = { ...sTemp, totalSessionsCount: 40 + (sTemp.cycleHistory?.length || 0), simulatedHistory, paidSessionsCount: (sTemp.paidSessionsCount || 0) };
+      } else if (sTemp.name?.trim().toUpperCase() === "AMENI TWETI") {
+        const override = [
+          [{d:"17-sept.", t:"present"}, {d:"20-sept.", t:"present"}, {d:"27-sept.", t:"present"}, {d:"27-sept.", t:"present"}, {d:"04-oct.", t:"present"}, {d:"04-oct.", t:"present"}, {d:"11-oct.", t:"present"}, {d:"11-oct.", t:"present"}],
+          [{d:"18-oct.", t:"present"}, {d:"18-oct.", t:"present"}, {d:"25-oct.", t:"present"}, {d:"25-oct.", t:"present"}, {d:"01-nov.", t:"present"}, {d:"01-nov.", t:"present"}, {d:"08-nov.", t:"present"}, {d:"08-nov.", t:"present"}],
+          [{d:"15-nov.", t:"present"}, {d:"15-nov.", t:"present"}, {d:"22-nov.", t:"present"}, {d:"22-nov.", t:"present"}, {d:"29-nov.", t:"present"}, {d:"29-nov.", t:"present"}, {d:"06-déc.", t:"present"}, {d:"06-déc.", t:"present"}],
+          [{d:"13-déc.", t:"present"}, {d:"13-déc.", t:"present"}, {d:"20-déc.", t:"present"}, {d:"20-déc.", t:"present"}, {d:"27-déc.", t:"present"}, {d:"27-déc.", t:"present"}, {d:"03-janv.", t:"absent"}, {d:"03-janv.", t:"absent"}],
+          [{d:"10-janv.", t:"present"}, {d:"10-janv.", t:"present"}, {d:"17-janv.", t:"present"}, {d:"17-janv.", t:"present"}, {d:"24-janv.", t:"absent"}, {d:"24-janv.", t:"absent"}, {d:"31-janv.", t:"present"}, {d:"31-janv.", t:"present"}],
+          [{d:"07-févr.", t:"present"}, {d:"07-févr.", t:"present"}, {d:"14-févr.", t:"present"}, {d:"14-févr.", t:"present"}, {d:"21-févr.", t:"absent"}, {d:"21-févr.", t:"absent"}, {d:"28-févr.", t:"absent"}, {d:"28-févr.", t:"absent"}],
+          [{d:"04-avr.", t:"present"}, {d:"04-avr.", t:"present"}]
+        ];
+        let simulatedHistory = [];
+        override.forEach(m => m.forEach(s => { if(s) simulatedHistory.push({type: s.t, date: new Date()}) }));
+        if (sTemp.cycleHistory) sTemp.cycleHistory.forEach(sess => simulatedHistory.push(sess));
+        sTemp = { ...sTemp, totalSessionsCount: 50 + (sTemp.cycleHistory?.length || 0), simulatedHistory, paidSessionsCount: (sTemp.paidSessionsCount || 0) };
+      } else if (sTemp.name?.trim().toUpperCase() === "SALSABIL HENI") {
+        const override = [
+          [{d:"16-sept.", t:"present"}, {d:"20-sept.", t:"present"}, {d:"23-sept.", t:"present"}, {d:"27-sept.", t:"present"}, {d:"30-sept.", t:"present"}, {d:"04-oct.", t:"present"}, {d:"07-oct.", t:"present"}, {d:"11-oct.", t:"present"}],
+          [{d:"14-oct.", t:"present"}, {d:"18-oct.", t:"present"}, {d:"21-oct.", t:"present"}, {d:"25-oct.", t:"present"}, {d:"28-oct.", t:"present"}, {d:"01-nov.", t:"present"}, {d:"04-nov.", t:"absent"}, {d:"08-nov.", t:"present"}],
+          [{d:"11-nov.", t:"present"}, {d:"15-nov.", t:"present"}, {d:"18-nov.", t:"present"}, {d:"22-nov.", t:"absent"}, {d:"25-nov.", t:"present"}, {d:"29-nov.", t:"present"}, {d:"02-nov.", t:"present"}, {d:"06-déc.", t:"present"}],
+          [{d:"09-déc.", t:"absent"}, {d:"13-déc.", t:"present"}, {d:"16-déc.", t:"present"}, {d:"20-déc.", t:"absent"}, {d:"23-déc.", t:"absent"}, {d:"27-déc.", t:"present"}, {d:"30-déc.", t:"present"}, {d:"03-janv.", t:"present"}],
+          [{d:"06-janv.", t:"present"}, {d:"10-janv.", t:"absent"}, {d:"13-janv.", t:"absent"}, {d:"17-janv.", t:"present"}, {d:"20-janv.", t:"present"}, {d:"24-janv.", t:"absent"}, {d:"27-janv.", t:"present"}, {d:"31-janv.", t:"present"}],
+          [{d:"03-févr.", t:"present"}, {d:"07-févr.", t:"present"}, {d:"10-févr.", t:"present"}, {d:"14-févr.", t:"absent"}, {d:"17-févr.", t:"absent"}, {d:"21-févr.", t:"present"}, {d:"24-févr.", t:"absent"}, {d:"28-févr.", t:"present"}],
+          [{d:"03-mars", t:"absent"}, {d:"07-mars", t:"present"}, {d:"10-mars", t:"absent"}, {d:"14-mars", t:"absent"}, {d:"24-mars", t:"absent"}, {d:"28-mars", t:"present"}, {d:"31-mars", t:"absent"}, {d:"04-avr.", t:"present"}],
+          [{d:"07-avr.", t:"present"}]
+        ];
+        let simulatedHistory = [];
+        override.forEach(m => m.forEach(s => { if(s) simulatedHistory.push({type: s.t, date: new Date()}) }));
+        if (sTemp.cycleHistory) sTemp.cycleHistory.forEach(sess => simulatedHistory.push(sess));
+        sTemp = { ...sTemp, totalSessionsCount: 57 + (sTemp.cycleHistory?.length || 0), simulatedHistory, paidSessionsCount: (sTemp.paidSessionsCount || 0) };
+      }
+
+      // Dynamic rule: If there are unpaid sessions but status says "Payer", switch to "Non Payer" visually
+      const owesSessionsCount = Math.max(0, (sTemp.totalSessionsCount || 0) - (sTemp.paidSessionsCount || 0));
+      if (owesSessionsCount > 0 && sTemp.paymentStatus === "Payer / تم الخلاص") {
+        sTemp.paymentStatus = "Non Payer / لم يدفع بعد";
+      }
+
+      return sTemp;
+    });
+
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(s =>
+        s.name.toLowerCase().includes(q) ||
+        (s.phone && s.phone.includes(q))
+      );
+    }
+
+    if (sortBy === 'alphabetical') {
+      result.sort((a, b) => a.name.localeCompare(b.name));
+    } else if (sortBy === 'newest') {
+      // Assuming new records appear at the end, reverse brings newest first.
+      // Alternatively, sort by _id descending.
+      result.sort((a, b) => b._id.localeCompare(a._id));
+    } else if (sortBy === 'oldest') {
+      result.sort((a, b) => a._id.localeCompare(b._id));
+    }
+
+    return result;
+  }, [students, searchQuery, sortBy]);
+
+  // Handle Pagination resets
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, sortBy, students.length]);
+
+  const totalPages = Math.ceil(filteredAndSortedStudents.length / itemsPerPage);
+  const paginatedStudents = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredAndSortedStudents.slice(start, start + itemsPerPage);
+  }, [filteredAndSortedStudents, currentPage, itemsPerPage]);
+
+  const handleNextPage = () => setCurrentPage((prev) => Math.min(prev + 1, totalPages));
+  const handlePrevPage = () => setCurrentPage((prev) => Math.max(prev - 1, 1));
+  const handlePageClick = (pageNum) => setCurrentPage(pageNum);
 
   // Map session keys to planning paths
   const SESSION_PLANNING_MAP = {
@@ -178,12 +1088,34 @@ const AttendanceTable = ({
   };
 
   const handleFinish = async (sessionKey) => {
-    if (finishedSessions.includes(sessionKey) || loadingSession) return;
+    if (loadingSession) return;
+    
+    const isFinished = isSessionFinished(sessionKey);
+
+    if (isFinished) {
+      const confirmed = await customConfirm("Annuler la clôture", "Voulez-vous vraiment annuler la clôture de cette session ? Cela réduira le compteur du cycle pour les élèves de cette حصة.");
+      if (!confirmed) return;
+    }
+    
     setLoadingSession(sessionKey);
     try {
-      const success = await onFinishSession(sessionKey);
+      const success = await onFinishSession(sessionKey, isFinished);
       if (success) {
-        setFinishedSessions(prev => [...prev, sessionKey]);
+        if (isFinished) {
+          // Revert: remove from finishedSessions
+          setFinishedSessions(prev => {
+            const updated = prev.filter(k => k !== sessionKey);
+            localStorage.setItem('finishedSessions', JSON.stringify(updated));
+            return updated;
+          });
+        } else {
+          // Finish: add to finishedSessions
+          setFinishedSessions(prev => {
+            const updated = [...prev, sessionKey];
+            localStorage.setItem('finishedSessions', JSON.stringify(updated));
+            return updated;
+          });
+        }
       }
     } finally {
       setLoadingSession(null);
@@ -233,13 +1165,30 @@ const AttendanceTable = ({
                 <input type="date" value={formatDateForInput(currentWeekDate)} onChange={handleDatePickerChange} />
               </div>
               <button className="btn-new-week" onClick={handleNewWeekClick}>Nouvelle Semaine</button>
-              <button className="btn-pdf">Format PDF</button>
-              <button className="btn-reset-all" onClick={onResetAll}>
-                <Trash2 size={18} /> Tout Supprimer
-              </button>
+
             </>
           )}
         </div>
+      </div>
+
+      <div className="filters-bar" style={{ display: 'flex', gap: '15px', marginBottom: '15px', padding: '0 10px' }}>
+        <input 
+          type="text" 
+          placeholder="Rechercher par nom ou numéro de téléphone..." 
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          style={{ flex: 1, padding: '10px 15px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.9rem', outline: 'none' }}
+        />
+        <select 
+          value={sortBy} 
+          onChange={(e) => setSortBy(e.target.value)}
+          style={{ padding: '10px 15px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.9rem', outline: 'none', background: 'white' }}
+        >
+          <option value="default">Tri par défaut</option>
+          <option value="alphabetical">De A à Z (Alphabétique)</option>
+          <option value="newest">Les plus récents en premier</option>
+          <option value="oldest">Les plus anciens en premier</option>
+        </select>
       </div>
 
       <div className="table-wrapper">
@@ -265,7 +1214,7 @@ const AttendanceTable = ({
                   <button
                     className={`btn-term ${isSessionFinished('mardi_matin') ? 'finished' : ''} ${loadingSession ? 'working' : ''}`}
                     onClick={() => handleFinish('mardi_matin')}
-                    disabled={isSessionFinished('mardi_matin') || selectedWeekData || !!loadingSession}
+                    disabled={selectedWeekData || !!loadingSession}
                   >
                     {loadingSession === 'mardi_matin' ? <Loader2 size={14} className="spin" /> : <CheckCircle size={14} />}
                     {isSessionFinished('mardi_matin') ? 'TERMINE' : 'TERMINER'}
@@ -279,7 +1228,7 @@ const AttendanceTable = ({
                   <button
                     className={`btn-term ${isSessionFinished('mercredi_matin') ? 'finished' : ''} ${loadingSession ? 'working' : ''}`}
                     onClick={() => handleFinish('mercredi_matin')}
-                    disabled={isSessionFinished('mercredi_matin') || selectedWeekData || !!loadingSession}
+                    disabled={selectedWeekData || !!loadingSession}
                   >
                     {loadingSession === 'mercredi_matin' ? <Loader2 size={14} className="spin" /> : <CheckCircle size={14} />}
                     {isSessionFinished('mercredi_matin') ? 'TERMINE' : 'TERMINER'}
@@ -293,7 +1242,7 @@ const AttendanceTable = ({
                   <button
                     className={`btn-term ${isSessionFinished('mercredi_amidi') ? 'finished' : ''} ${loadingSession ? 'working' : ''}`}
                     onClick={() => handleFinish('mercredi_amidi')}
-                    disabled={isSessionFinished('mercredi_amidi') || selectedWeekData || !!loadingSession}
+                    disabled={selectedWeekData || !!loadingSession}
                   >
                     {loadingSession === 'mercredi_amidi' ? <Loader2 size={14} className="spin" /> : <CheckCircle size={14} />}
                     {isSessionFinished('mercredi_amidi') ? 'TERMINE' : 'TERMINER'}
@@ -307,7 +1256,7 @@ const AttendanceTable = ({
                   <button
                     className={`btn-term ${isSessionFinished('samedi_matin') ? 'finished' : ''} ${loadingSession ? 'working' : ''}`}
                     onClick={() => handleFinish('samedi_matin')}
-                    disabled={isSessionFinished('samedi_matin') || selectedWeekData || !!loadingSession}
+                    disabled={selectedWeekData || !!loadingSession}
                   >
                     {loadingSession === 'samedi_matin' ? <Loader2 size={14} className="spin" /> : <CheckCircle size={14} />}
                     {isSessionFinished('samedi_matin') ? 'TERMINE' : 'TERMINER'}
@@ -321,7 +1270,7 @@ const AttendanceTable = ({
                   <button
                     className={`btn-term ${isSessionFinished('samedi_amidi') ? 'finished' : ''} ${loadingSession ? 'working' : ''}`}
                     onClick={() => handleFinish('samedi_amidi')}
-                    disabled={isSessionFinished('samedi_amidi') || selectedWeekData || !!loadingSession}
+                    disabled={selectedWeekData || !!loadingSession}
                   >
                     {loadingSession === 'samedi_amidi' ? <Loader2 size={14} className="spin" /> : <CheckCircle size={14} />}
                     {isSessionFinished('samedi_amidi') ? 'TERMINE' : 'TERMINER'}
@@ -335,7 +1284,7 @@ const AttendanceTable = ({
                   <button
                     className={`btn-term ${isSessionFinished('dimanche_unique') ? 'finished' : ''} ${loadingSession ? 'working' : ''}`}
                     onClick={() => handleFinish('dimanche_unique')}
-                    disabled={isSessionFinished('dimanche_unique') || selectedWeekData || !!loadingSession}
+                    disabled={selectedWeekData || !!loadingSession}
                   >
                     {loadingSession === 'dimanche_unique' ? <Loader2 size={14} className="spin" /> : <CheckCircle size={14} />}
                     {(isSessionFinished('dimanche_unique') || loadingSession === 'dimanche_unique') ? 'TERMINE' : 'TERMINER'}
@@ -345,8 +1294,63 @@ const AttendanceTable = ({
             </tr>
           </thead>
           <tbody>
-            {students.map((student) => (
-              <tr key={student._id}>
+            {isLoading ? (
+              // --- Skeleton Loading State ---
+              Array.from({ length: itemsPerPage }).map((_, idx) => (
+                <tr key={`skeleton-${idx}`}>
+                  <td>
+                    <div className="student-info-cell" style={{ gap: '15px' }}>
+                      <div className="skeleton skeleton-avatar"></div>
+                      <div className="student-details" style={{ gap: '6px' }}>
+                        <div className="skeleton skeleton-text" style={{ width: '120px' }}></div>
+                        <div className="skeleton skeleton-text" style={{ width: '80px', height: '10px' }}></div>
+                      </div>
+                    </div>
+                  </td>
+                  {/* Attendance Checkboxes Skeleton */}
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <td key={`sk-check-${i}`}>
+                      <div className="skeleton skeleton-box"></div>
+                    </td>
+                  ))}
+                  {/* Cycle Skeleton */}
+                  <td>
+                    <div className="cycle-tracker">
+                      {Array.from({ length: 8 }).map((_, i) => (
+                        <div key={`sk-dot-${i}`} className="skeleton skeleton-dot"></div>
+                      ))}
+                    </div>
+                  </td>
+                  {/* Payment Skeleton */}
+                  <td>
+                    <div className="skeleton skeleton-select"></div>
+                  </td>
+                  {/* Annotations Skeleton */}
+                  <td>
+                    <div className="skeleton skeleton-input"></div>
+                  </td>
+                  {/* Actions Skeleton */}
+                  <td>
+                    <div className="action-btns">
+                      <div className="skeleton skeleton-icon"></div>
+                      <div className="skeleton skeleton-icon"></div>
+                      <div className="skeleton skeleton-icon"></div>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            ) : paginatedStudents.length === 0 ? (
+              <tr>
+                <td colSpan="8" style={{ textAlign: 'center', padding: '2rem', color: '#64748b', fontWeight: 'bold' }}>
+                  Aucun étudiant trouvé.
+                </td>
+              </tr>
+            ) : (
+              paginatedStudents.map((student) => (
+                <tr 
+                  key={student._id}
+                  className={student.paymentStatus === 'Payer / تم الخلاص' ? 'row-payer' : ''}
+                >
                 <td>
                   <div className="student-info-cell">
                     <div className="student-avatar">
@@ -362,48 +1366,48 @@ const AttendanceTable = ({
                   </div>
                 </td>
                 <td>
-                  <div 
-                    className={`attendance-check ${!student.planning?.mardi?.matin ? 'disabled' : ''} ${isPresent(student, 'mardi_matin') ? 'present' : ''} ${loadingCheck?.studentId === student._id && loadingCheck?.sessionKey === 'mardi_matin' ? 'loading' : ''}`} 
+                  <div
+                    className={`attendance-check ${!student.planning?.mardi?.matin ? 'disabled' : ''} ${isPresent(student, 'mardi_matin') ? 'present' : ''} ${loadingCheck?.studentId === student._id && loadingCheck?.sessionKey === 'mardi_matin' ? 'loading' : ''}`}
                     onClick={() => !isArchivesView && !selectedWeekData && !loadingCheck && student.planning?.mardi?.matin && handleCheckClick(student._id, 'mardi_matin')}
                   >
                     {loadingCheck?.studentId === student._id && loadingCheck?.sessionKey === 'mardi_matin' && <Loader2 size={12} className="check-spinner" />}
                   </div>
                 </td>
                 <td>
-                  <div 
-                    className={`attendance-check ${!student.planning?.mercredi?.matin ? 'disabled' : ''} ${isPresent(student, 'mercredi_matin') ? 'present' : ''} ${loadingCheck?.studentId === student._id && loadingCheck?.sessionKey === 'mercredi_matin' ? 'loading' : ''}`} 
+                  <div
+                    className={`attendance-check ${!student.planning?.mercredi?.matin ? 'disabled' : ''} ${isPresent(student, 'mercredi_matin') ? 'present' : ''} ${loadingCheck?.studentId === student._id && loadingCheck?.sessionKey === 'mercredi_matin' ? 'loading' : ''}`}
                     onClick={() => !isArchivesView && !selectedWeekData && !loadingCheck && student.planning?.mercredi?.matin && handleCheckClick(student._id, 'mercredi_matin')}
                   >
                     {loadingCheck?.studentId === student._id && loadingCheck?.sessionKey === 'mercredi_matin' && <Loader2 size={12} className="check-spinner" />}
                   </div>
                 </td>
                 <td>
-                  <div 
-                    className={`attendance-check ${!student.planning?.mercredi?.amidi ? 'disabled' : ''} ${isPresent(student, 'mercredi_amidi') ? 'present' : ''} ${loadingCheck?.studentId === student._id && loadingCheck?.sessionKey === 'mercredi_amidi' ? 'loading' : ''}`} 
+                  <div
+                    className={`attendance-check ${!student.planning?.mercredi?.amidi ? 'disabled' : ''} ${isPresent(student, 'mercredi_amidi') ? 'present' : ''} ${loadingCheck?.studentId === student._id && loadingCheck?.sessionKey === 'mercredi_amidi' ? 'loading' : ''}`}
                     onClick={() => !isArchivesView && !selectedWeekData && !loadingCheck && student.planning?.mercredi?.amidi && handleCheckClick(student._id, 'mercredi_amidi')}
                   >
                     {loadingCheck?.studentId === student._id && loadingCheck?.sessionKey === 'mercredi_amidi' && <Loader2 size={12} className="check-spinner" />}
                   </div>
                 </td>
                 <td>
-                  <div 
-                    className={`attendance-check ${!student.planning?.samedi?.matin ? 'disabled' : ''} ${isPresent(student, 'samedi_matin') ? 'present' : ''} ${loadingCheck?.studentId === student._id && loadingCheck?.sessionKey === 'samedi_matin' ? 'loading' : ''}`} 
+                  <div
+                    className={`attendance-check ${!student.planning?.samedi?.matin ? 'disabled' : ''} ${isPresent(student, 'samedi_matin') ? 'present' : ''} ${loadingCheck?.studentId === student._id && loadingCheck?.sessionKey === 'samedi_matin' ? 'loading' : ''}`}
                     onClick={() => !isArchivesView && !selectedWeekData && !loadingCheck && student.planning?.samedi?.matin && handleCheckClick(student._id, 'samedi_matin')}
                   >
                     {loadingCheck?.studentId === student._id && loadingCheck?.sessionKey === 'samedi_matin' && <Loader2 size={12} className="check-spinner" />}
                   </div>
                 </td>
                 <td>
-                  <div 
-                    className={`attendance-check ${!student.planning?.samedi?.amidi ? 'disabled' : ''} ${isPresent(student, 'samedi_amidi') ? 'present' : ''} ${loadingCheck?.studentId === student._id && loadingCheck?.sessionKey === 'samedi_amidi' ? 'loading' : ''}`} 
+                  <div
+                    className={`attendance-check ${!student.planning?.samedi?.amidi ? 'disabled' : ''} ${isPresent(student, 'samedi_amidi') ? 'present' : ''} ${loadingCheck?.studentId === student._id && loadingCheck?.sessionKey === 'samedi_amidi' ? 'loading' : ''}`}
                     onClick={() => !isArchivesView && !selectedWeekData && !loadingCheck && student.planning?.samedi?.amidi && handleCheckClick(student._id, 'samedi_amidi')}
                   >
                     {loadingCheck?.studentId === student._id && loadingCheck?.sessionKey === 'samedi_amidi' && <Loader2 size={12} className="check-spinner" />}
                   </div>
                 </td>
                 <td>
-                  <div 
-                    className={`attendance-check ${!student.planning?.dimanche?.unique ? 'disabled' : ''} ${isPresent(student, 'dimanche_unique') ? 'present' : ''} ${loadingCheck?.studentId === student._id && loadingCheck?.sessionKey === 'dimanche_unique' ? 'loading' : ''}`} 
+                  <div
+                    className={`attendance-check ${!student.planning?.dimanche?.unique ? 'disabled' : ''} ${isPresent(student, 'dimanche_unique') ? 'present' : ''} ${loadingCheck?.studentId === student._id && loadingCheck?.sessionKey === 'dimanche_unique' ? 'loading' : ''}`}
                     onClick={() => !isArchivesView && !selectedWeekData && !loadingCheck && student.planning?.dimanche?.unique && handleCheckClick(student._id, 'dimanche_unique')}
                   >
                     {loadingCheck?.studentId === student._id && loadingCheck?.sessionKey === 'dimanche_unique' && <Loader2 size={12} className="check-spinner" />}
@@ -419,8 +1423,9 @@ const AttendanceTable = ({
                       for (let i = 0; i < maxS; i++) {
                         let statusClass = '';
                         if (i < sessionsInCurrentCycle) {
-                          const historyIndex = (student.cycleHistory?.length || 0) - sessionsInCurrentCycle + i;
-                          const session = student.cycleHistory?.[historyIndex];
+                          const history = student.simulatedHistory || student.cycleHistory || [];
+                          const historyIndex = history.length - sessionsInCurrentCycle + i;
+                          const session = history[historyIndex];
                           if (session) {
                             statusClass = session.type === 'present' ? 'attended' : 'missed';
                           }
@@ -434,8 +1439,8 @@ const AttendanceTable = ({
                 <td>
                   <div className="payment-cell">
                     {(() => {
-                      const totalCount = student.totalSessionsCount || 0;
-                      const paidCount = student.paidSessionsCount || 0;
+                      const totalCount = Number(student.totalSessionsCount || 0);
+                      const paidCount = Number(student.paidSessionsCount || 0);
                       const tarif = student.tarif || 80;
                       const debtNodes = [];
 
@@ -507,10 +1512,34 @@ const AttendanceTable = ({
                   </div>
                 </td>
               </tr>
-            ))}
+            )))}
           </tbody>
         </table>
       </div>
+
+      {totalPages > 1 && (
+        <div className="modern-pagination">
+          <button className="page-nav-btn" onClick={handlePrevPage} disabled={currentPage === 1}>
+            Précédent
+          </button>
+          
+          <div className="page-numbers">
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+              <button 
+                key={page} 
+                className={`page-num-btn ${currentPage === page ? 'active' : ''}`}
+                onClick={() => handlePageClick(page)}
+              >
+                {page}
+              </button>
+            ))}
+          </div>
+
+          <button className="page-nav-btn" onClick={handleNextPage} disabled={currentPage === totalPages}>
+            Suivant
+          </button>
+        </div>
+      )}
 
       {isWeeksHistoryModalOpen && (
         <div className="modal-overlay">

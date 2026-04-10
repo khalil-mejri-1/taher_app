@@ -11,14 +11,11 @@ const Navbar = ({ onAddStudent, onResetSessions }) => {
       </div>
 
       <div className="navbar-right">
-        <div className="search-container">
-          <Search size={18} color="#94a3b8" />
-          <input type="text" placeholder="Rechercher par nom..." />
-        </div>
+
 
         <button className="btn btn-orange" onClick={onResetSessions}>
           <RotateCcw size={18} />
-          <span>تعطيل الحصص</span>
+          <span>تصفير الحصص</span>
         </button>
 
 

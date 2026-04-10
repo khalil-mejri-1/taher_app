@@ -852,3 +852,139 @@ tbody td {
   color: #ef4444;
   font-size: 0.85rem;
 }
+
+/* --- Modern Pagination --- */
+.modern-pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  background: white;
+  border-top: 1px solid #f1f5f9;
+  border-radius: 0 0 20px 20px;
+  margin-top: 0;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.02);
+}
+
+.page-numbers {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.page-num-btn {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+  font-weight: 700;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.page-num-btn:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+.page-num-btn.active {
+  background: #3b82f6;
+  color: white;
+  border-color: #3b82f6;
+  box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3);
+  transform: translateY(-2px);
+}
+
+.page-nav-btn {
+  padding: 0.6rem 1.2rem;
+  border-radius: 10px;
+  background: white;
+  border: 1px solid #e2e8f0;
+  color: #1e293b;
+  font-weight: 800;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+}
+
+.page-nav-btn:hover:not(:disabled) {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  transform: translateY(-1px);
+}
+
+.page-nav-btn:disabled {
+  background: #f1f5f9;
+  color: #94a3b8;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* --- Skeleton Loading Animation --- */
+.skeleton {
+  background: #e2e8f0;
+  background: linear-gradient(110deg, #ececec 8%, #f5f5f5 18%, #ececec 33%);
+  border-radius: 5px;
+  background-size: 200% 100%;
+  animation: shine 1.5s linear infinite;
+}
+
+@keyframes shine {
+  to {
+    background-position-x: -200%;
+  }
+}
+
+.skeleton-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+}
+
+.skeleton-text {
+  height: 12px;
+  border-radius: 4px;
+}
+
+.skeleton-box {
+  width: 28px;
+  height: 28px;
+  border-radius: 10px;
+  margin: 0 auto;
+}
+
+.skeleton-dot {
+  width: 12px;
+  height: 8px;
+  border-radius: 2px;
+}
+
+.skeleton-select {
+  width: 100%;
+  height: 28px;
+  border-radius: 8px;
+}
+
+.skeleton-input {
+  width: 100%;
+  height: 32px;
+  border-radius: 10px;
+}
+
+.skeleton-icon {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+}
+
+/* --- Row Payer Background --- */
+tbody tr.row-payer {
+  background: #f0fdf4 !important; /* Tailwind green-50 for a soft green background */
+}
