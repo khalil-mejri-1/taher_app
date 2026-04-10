@@ -445,6 +445,10 @@ function App() {
       finalPaidCount = (student.paidSessionsCount || 0);
     }
 
+    // Subtract deleted overrides
+    const deletedCount = Object.values(student.historyOverrides || {}).filter(v => v === 'deleted').length;
+    effectiveTotalSessionsCount -= deletedCount;
+
     const owesSessionsCount = Math.max(0, effectiveTotalSessionsCount - finalPaidCount);
     const visuallyNonPayer = owesSessionsCount > 0 && student.paymentStatus === "Payer / تم الخلاص";
 
@@ -546,6 +550,27 @@ function App() {
       setSelectedStudentHistory(prev => ({ ...prev, historyOverrides: newOverrides }));
     } catch (err) {
       console.error('Error toggling compensated status:', err);
+    }
+  };
+
+  const handleDeleteSession = async (studentId, historyIndex) => {
+    const confirmed = await customConfirm("Supprimer la séance", "Voulez-vous vraiment supprimer cette séance de l'historique ?");
+    if (!confirmed) return;
+
+    const student = students.find(s => s._id === studentId);
+    if (!student) return;
+
+    const newOverrides = { ...(student.historyOverrides || {}), [historyIndex]: 'deleted' };
+
+    try {
+      await axios.put(`${API_URL}/${studentId}`, {
+        historyOverrides: newOverrides
+      });
+
+      setStudents(prev => prev.map(s => s._id === studentId ? { ...s, historyOverrides: newOverrides } : s));
+      setSelectedStudentHistory(prev => ({ ...prev, historyOverrides: newOverrides }));
+    } catch (err) {
+      console.error('Error deleting session:', err);
     }
   };
 
@@ -734,6 +759,7 @@ function App() {
           isOpen={isHistoryModalOpen}
           onClose={() => setIsHistoryModalOpen(false)}
           onToggleCompensated={handleToggleCompensated}
+          onDeleteSession={handleDeleteSession}
           onToggleMonthlyPayment={handleToggleMonthlyPayment}
         />
       )}

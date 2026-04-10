@@ -1427,7 +1427,7 @@ const AttendanceTable = ({
                           const historyIndex = history.length - sessionsInCurrentCycle + i;
                           const session = history[historyIndex];
                           const effectiveType = student.historyOverrides?.[historyIndex] || session?.type;
-                          if (effectiveType) {
+                          if (effectiveType && effectiveType !== 'deleted') {
                             if (effectiveType === 'present') {
                               statusClass = 'attended';
                             } else if (effectiveType === 'compensated') {

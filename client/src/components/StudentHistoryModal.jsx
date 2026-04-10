@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { X, Calendar, Phone, Image as ImageIcon } from 'lucide-react';
+import { X, Calendar, Phone, Image as ImageIcon, Trash2 } from 'lucide-react';
 import './StudentHistoryModal.css';
 
-const StudentHistoryModal = ({ student, isOpen, onClose, onToggleCompensated, onToggleMonthlyPayment }) => {
+const StudentHistoryModal = ({ student, isOpen, onClose, onToggleCompensated, onDeleteSession, onToggleMonthlyPayment }) => {
   if (!isOpen) return null;
 
   const isEyaNaes = student.name?.toUpperCase() === "EYA NAES";
@@ -1059,11 +1059,20 @@ const StudentHistoryModal = ({ student, isOpen, onClose, onToggleCompensated, on
                       const historyIndex = (month.number - 1) * maxS + idx;
                       const session = student.cycleHistory?.[historyIndex] || originalSession;
                       const displayType = student.historyOverrides?.[historyIndex] || session?.type;
+                      if (displayType === 'deleted') return <td key={idx}><div className="status-dot-container"><div className="status-dot empty"></div></div></td>;
+                      
                       return (
                         <td key={idx}>
                           <div className={`status-dot-container ${session ? 'has-data' : ''}`}>
                             {session && (
                               <div className="dot-wrapper">
+                                <button 
+                                  className="delete-session-btn" 
+                                  onClick={(e) => { e.stopPropagation(); onDeleteSession(student._id, historyIndex); }}
+                                  title="Supprimer cette séance"
+                                >
+                                  <Trash2 size={10} />
+                                </button>
                                 <div
                                   className={`status-dot ${displayType}`}
                                   onClick={() => onToggleCompensated(student._id, historyIndex, session.type)}
