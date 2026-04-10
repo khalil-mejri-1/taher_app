@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { X, Calendar, Phone, Image as ImageIcon, Trash2 } from 'lucide-react';
 import './StudentHistoryModal.css';
 
-const StudentHistoryModal = ({ student, isOpen, onClose, onToggleCompensated, onDeleteSession, onToggleMonthlyPayment }) => {
+const StudentHistoryModal = ({ student, isOpen, onClose, onToggleCompensated, onToggleMonthlyPayment, onDeleteSession }) => {
   if (!isOpen) return null;
 
   const isEyaNaes = student.name?.toUpperCase() === "EYA NAES";
@@ -1059,25 +1059,28 @@ const StudentHistoryModal = ({ student, isOpen, onClose, onToggleCompensated, on
                       const historyIndex = (month.number - 1) * maxS + idx;
                       const session = student.cycleHistory?.[historyIndex] || originalSession;
                       const displayType = student.historyOverrides?.[historyIndex] || session?.type;
-                      if (displayType === 'deleted') return <td key={idx}><div className="status-dot-container"><div className="status-dot empty"></div></div></td>;
-                      
                       return (
                         <td key={idx}>
                           <div className={`status-dot-container ${session ? 'has-data' : ''}`}>
-                            {session && (
+                            {session && displayType !== 'deleted' && (
                               <div className="dot-wrapper">
-                                <button 
-                                  className="delete-session-btn" 
-                                  onClick={(e) => { e.stopPropagation(); onDeleteSession(student._id, historyIndex); }}
-                                  title="Supprimer cette séance"
-                                >
-                                  <Trash2 size={10} />
-                                </button>
-                                <div
-                                  className={`status-dot ${displayType}`}
-                                  onClick={() => onToggleCompensated(student._id, historyIndex, session.type)}
-                                  style={{ cursor: 'pointer' }}
-                                ></div>
+                                <div className="dot-interactive-wrapper">
+                                  <div
+                                    className={`status-dot ${displayType}`}
+                                    onClick={() => onToggleCompensated(student._id, historyIndex, session.type)}
+                                    style={{ cursor: 'pointer' }}
+                                  ></div>
+                                  <button 
+                                    className="delete-session-btn"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      onDeleteSession(student._id, historyIndex);
+                                    }}
+                                    title="Supprimer la session"
+                                  >
+                                    <Trash2 size={10} />
+                                  </button>
+                                </div>
                                 <span className="session-date">
                                   {session.customDateStr
                                     ? session.customDateStr
@@ -1086,7 +1089,7 @@ const StudentHistoryModal = ({ student, isOpen, onClose, onToggleCompensated, on
                                 </span>
                               </div>
                             )}
-                            {!session && <div className="status-dot empty"></div>}
+                            {(!session || displayType === 'deleted') && <div className="status-dot empty"></div>}
                           </div>
                         </td>
                       );

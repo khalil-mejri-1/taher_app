@@ -1425,7 +1425,6 @@ const AttendanceTable = ({
                         if (i < sessionsInCurrentCycle) {
                           const history = student.simulatedHistory || student.cycleHistory || [];
                           const historyIndex = history.length - sessionsInCurrentCycle + i;
-                          const session = history[historyIndex];
                           const effectiveType = student.historyOverrides?.[historyIndex] || session?.type;
                           if (effectiveType && effectiveType !== 'deleted') {
                             if (effectiveType === 'present') {

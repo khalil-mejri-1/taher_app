@@ -234,16 +234,22 @@
   flex-direction: column;
   align-items: center;
   gap: 4px;
+}
+
+.dot-interactive-wrapper {
   position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .delete-session-btn {
   position: absolute;
   top: -8px;
-  right: -8px;
-  background: #fee2e2;
+  right: -10px;
+  background: white;
   color: #ef4444;
-  border: none;
+  border: 1px solid #fee2e2;
   border-radius: 50%;
   width: 18px;
   height: 18px;
@@ -251,20 +257,22 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  padding: 0;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
   opacity: 0;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
   z-index: 10;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-.dot-wrapper:hover .delete-session-btn {
+.dot-interactive-wrapper:hover .delete-session-btn {
   opacity: 1;
+  transform: scale(1.1);
 }
 
 .delete-session-btn:hover {
   background: #ef4444;
   color: white;
-  transform: scale(1.1);
+  border-color: #ef4444;
 }
 
 .session-date {
