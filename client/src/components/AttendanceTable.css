@@ -222,6 +222,9 @@ th {
 .cycle-dot.missed {
   background: #ef4444;
 }
+.cycle-dot.compensated {
+  background: #3b82f6;
+}
 
 tbody tr {
   border-bottom: 12px solid white;
