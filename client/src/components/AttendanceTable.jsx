@@ -1426,8 +1426,9 @@ const AttendanceTable = ({
                           const history = student.simulatedHistory || student.cycleHistory || [];
                           const historyIndex = history.length - sessionsInCurrentCycle + i;
                           const session = history[historyIndex];
-                          if (session) {
-                            statusClass = session.type === 'present' ? 'attended' : 'missed';
+                          const effectiveType = student.historyOverrides?.[historyIndex] || session?.type;
+                          if (effectiveType) {
+                            statusClass = effectiveType === 'present' ? 'attended' : 'missed';
                           }
                         }
                         dots.push(<span key={i} className={`cycle-dot ${statusClass}`}></span>);

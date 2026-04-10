@@ -515,29 +515,35 @@ function App() {
     }
   };
 
-  const handleToggleCompensated = async (studentId, historyIndex) => {
+  const handleToggleCompensated = async (studentId, historyIndex, fallbackType) => {
     const student = students.find(s => s._id === studentId);
-    if (!student || !student.cycleHistory) return;
+    if (!student) return;
 
-    const newCycleHistory = [...student.cycleHistory];
-    const session = newCycleHistory[historyIndex];
-
-    if (session && session.type === 'absent') {
-      session.type = 'compensated';
-    } else if (session && session.type === 'compensated') {
-      session.type = 'absent';
-    } else {
-      return; // Only toggle between absent and compensated
+    let currentType = student.historyOverrides?.[historyIndex];
+    if (!currentType) {
+      if (student.cycleHistory && student.cycleHistory[historyIndex]) {
+        currentType = student.cycleHistory[historyIndex].type;
+      } else {
+        currentType = fallbackType;
+      }
     }
+
+    if (!currentType) return; // Cannot toggle an empty session
+
+    let nextType = 'absent';
+    if (currentType === 'present') nextType = 'absent';
+    else if (currentType === 'absent') nextType = 'compensated';
+    else if (currentType === 'compensated') nextType = 'present';
+
+    const newOverrides = { ...(student.historyOverrides || {}), [historyIndex]: nextType };
 
     try {
       await axios.put(`${API_URL}/${studentId}`, {
-        cycleHistory: newCycleHistory
+        historyOverrides: newOverrides
       });
 
-      // Update local state for immediate feedback
-      setStudents(prev => prev.map(s => s._id === studentId ? { ...s, cycleHistory: newCycleHistory } : s));
-      setSelectedStudentHistory(prev => ({ ...prev, cycleHistory: newCycleHistory }));
+      setStudents(prev => prev.map(s => s._id === studentId ? { ...s, historyOverrides: newOverrides } : s));
+      setSelectedStudentHistory(prev => ({ ...prev, historyOverrides: newOverrides }));
     } catch (err) {
       console.error('Error toggling compensated status:', err);
     }

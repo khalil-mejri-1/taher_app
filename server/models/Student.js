@@ -33,6 +33,7 @@ const StudentSchema = new mongoose.Schema({
   paidSessionsCount: { type: Number, default: 0 },
   totalSessionsCount: { type: Number, default: 0 },
   paidMonths: { type: [Number], default: [] },
+  historyOverrides: { type: Object, default: {} },
   totalMoneyPaid: { type: Number, default: 0 }
 }, { timestamps: true });
 

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { X, Calendar, Phone, Image as ImageIcon } from 'lucide-react';
 import './StudentHistoryModal.css';
 
@@ -1055,17 +1055,19 @@ const StudentHistoryModal = ({ student, isOpen, onClose, onToggleCompensated, on
                     <td className="cycle-number-cell">
                       <span className="cycle-num">{month.number}</span>
                     </td>
-                    {month.sessions.map((session, idx) => {
+                    {month.sessions.map((originalSession, idx) => {
                       const historyIndex = (month.number - 1) * maxS + idx;
+                      const session = student.cycleHistory?.[historyIndex] || originalSession;
+                      const displayType = student.historyOverrides?.[historyIndex] || session?.type;
                       return (
                         <td key={idx}>
                           <div className={`status-dot-container ${session ? 'has-data' : ''}`}>
                             {session && (
                               <div className="dot-wrapper">
                                 <div
-                                  className={`status-dot ${session.type}`}
-                                  onClick={() => onToggleCompensated(student._id, historyIndex)}
-                                  style={{ cursor: session.type !== 'present' ? 'pointer' : 'default' }}
+                                  className={`status-dot ${displayType}`}
+                                  onClick={() => onToggleCompensated(student._id, historyIndex, session.type)}
+                                  style={{ cursor: 'pointer' }}
                                 ></div>
                                 <span className="session-date">
                                   {session.customDateStr
