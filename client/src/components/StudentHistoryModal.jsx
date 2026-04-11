@@ -64,7 +64,13 @@ const StudentHistoryModal = ({ student, isOpen, onClose, onToggleCompensated, on
 
           <div className="info-card cin-card">
             {student.idCardImage ? (
-              <img src={student.idCardImage} alt="CIN" className="cin-preview" />
+              <img 
+                src={student.idCardImage} 
+                alt="CIN" 
+                className="cin-preview" 
+                onClick={() => window.open(student.idCardImage, '_blank')}
+                title="Cliquer pour agrandir"
+              />
             ) : (
               <div className="cin-placeholder">
                 <ImageIcon size={24} />
@@ -123,7 +129,7 @@ const StudentHistoryModal = ({ student, isOpen, onClose, onToggleCompensated, on
                                   </button>
                                 </div>
                                 <span className="session-date">
-                                  {session?.customDateStr || (session?.date ? new Date(session.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }) : '--')}
+                                  {session?.customDateStr || (session?.date ? new Date(session.date).toLocaleDateString('fr-FR') : '--')}
                                 </span>
                               </div>
                             ) : (

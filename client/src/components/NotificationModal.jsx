@@ -10,7 +10,8 @@ const NotificationModal = ({
   type = 'alert', // 'alert', 'confirm', 'prompt'
   onConfirm, 
   inputValue = '',
-  placeholder = 'Entrez une valeur...'
+  placeholder = 'Entrez une valeur...',
+  inputType = 'text'
 }) => {
   const [value, setValue] = useState(inputValue);
 
@@ -51,7 +52,7 @@ const NotificationModal = ({
           
           {type === 'prompt' && (
             <input 
-              type="text" 
+              type={inputType} 
               className="modal-input" 
               value={value} 
               onChange={(e) => setValue(e.target.value)}

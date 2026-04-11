@@ -71,7 +71,7 @@ function App() {
     });
   };
 
-  const customPrompt = (title, message, placeholder = '', initialValue = '') => {
+  const customPrompt = (title, message, placeholder = '', initialValue = '', inputType = 'text') => {
     return new Promise((resolve) => {
       setNotification({
         isOpen: true,
@@ -80,6 +80,7 @@ function App() {
         message,
         placeholder,
         inputValue: initialValue,
+        inputType,
         onConfirm: (val) => resolve(val),
         onClose: () => {
           setNotification(prev => ({ ...prev, isOpen: false }));
@@ -379,29 +380,60 @@ function App() {
     else if (currentType === 'compensated' || currentType === 'none') nextType = 'present';
 
     let totalAdjust = 0;
+    let selectedDate = null;
+    let newCycleHistory = [...(student.cycleHistory || [])];
+
     // If we are filling a previously empty or deleted slot
     if (fallbackType === 'empty-trigger') {
       totalAdjust = 1;
+
+      // Prompt for date
+      const today = new Date().toISOString().split('T')[0];
+      const dateStr = await customPrompt("Date de la séance", "Veuillez choisir la date de cette حصة جديدة:", "", today, "date");
+      if (!dateStr) return; // Cancelled
+      selectedDate = new Date(dateStr);
+
+      // Ensure history array is long enough by filling with dummy sessions if needed
+      while (newCycleHistory.length <= historyIndex) {
+        newCycleHistory.push({
+          session: 'manual_add',
+          date: selectedDate,
+          type: 'absent' // Default for fill-ins
+        });
+      }
+      // Set the specific one to nextType
+      newCycleHistory[historyIndex] = {
+        session: 'manual_add',
+        date: selectedDate,
+        type: nextType
+      };
+    } else {
+      // Just toggle type in existing history if it exists
+      if (newCycleHistory[historyIndex]) {
+        newCycleHistory[historyIndex].type = nextType;
+      }
     }
 
     const newOverrides = { ...(student.historyOverrides || {}), [historyIndex]: nextType };
     const newTotal = (student.totalSessionsCount || 0) + totalAdjust;
 
     try {
-      await axios.put(`${API_URL}/${studentId}`, {
+      const updateData = {
         historyOverrides: newOverrides,
-        totalSessionsCount: newTotal
-      });
-      setStudents(prev => prev.map(s => s._id === studentId ? {
-        ...s,
-        historyOverrides: newOverrides,
-        totalSessionsCount: newTotal
-      } : s));
-      setSelectedStudentHistory(prev => ({
-        ...prev,
-        historyOverrides: newOverrides,
-        totalSessionsCount: newTotal
-      }));
+        totalSessionsCount: newTotal,
+        cycleHistory: newCycleHistory
+      };
+
+      await axios.put(`${API_URL}/${studentId}`, updateData);
+
+      const updatedStudent = {
+        ...student,
+        ...updateData
+      };
+
+      setStudents(prev => prev.map(s => s._id === studentId ? updatedStudent : s));
+      setSelectedStudentHistory(updatedStudent);
+
     } catch (err) {
       console.error('Error toggling compensated status:', err);
     }
@@ -654,6 +686,7 @@ function App() {
         type={notification.type}
         placeholder={notification.placeholder}
         inputValue={notification.inputValue}
+        inputType={notification.inputType}
         onConfirm={notification.onConfirm}
       />
     </div>
