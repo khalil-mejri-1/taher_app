@@ -140,6 +140,27 @@ const RegistrationModal = ({ isOpen, onClose, onSubmit, initialData }) => {
             </label>
           </div>
 
+          <div className="form-grid">
+            <div className="form-group">
+              <label>SÉANCES EFFECTUÉES (CYCLE) / الحصص المنجزة</label>
+              <input 
+                type="number" 
+                name="totalSessionsCount" 
+                value={formData.totalSessionsCount || 0} 
+                onChange={(e) => setFormData(prev => ({ ...prev, totalSessionsCount: parseInt(e.target.value) || 0 }))} 
+              />
+            </div>
+            <div className="form-group">
+              <label>SÉANCES PAYÉES / الحصص الخالصة</label>
+              <input 
+                type="number" 
+                name="paidSessionsCount" 
+                value={formData.paidSessionsCount || 0} 
+                onChange={(e) => setFormData(prev => ({ ...prev, paidSessionsCount: parseInt(e.target.value) || 0 }))} 
+              />
+            </div>
+          </div>
+
           <div className="form-group">
             <label>STATUT DE DÉMARRAGE / حالة التسجيل</label>
             <div className="radio-group">

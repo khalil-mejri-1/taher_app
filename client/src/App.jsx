@@ -285,166 +285,7 @@ function App() {
     let updates = { paymentStatus: newStatus };
     let finalPaidCount = student.paidSessionsCount || 0;
     let finalMoneyPaid = student.totalMoneyPaid || 0;
-
     let effectiveTotalSessionsCount = student.totalSessionsCount || 0;
-    if (student.name?.toUpperCase() === "EYA NAES") {
-      effectiveTotalSessionsCount = 91 + (student.cycleHistory?.length || 0);
-    } else if (student.name?.toUpperCase() === "NESRINE NAFATI") {
-      effectiveTotalSessionsCount = 36 + (student.cycleHistory?.length || 0);
-    } else if (student.name?.toUpperCase() === "MALEK KEMEL") {
-      effectiveTotalSessionsCount = 5 + (student.cycleHistory?.length || 0);
-    } else if (student.name?.toUpperCase() === "YOSRA BEN ALI") {
-      effectiveTotalSessionsCount = 7 + (student.cycleHistory?.length || 0);
-    } else if (student.name?.toUpperCase() === "IMEN SAFI") {
-      effectiveTotalSessionsCount = 6 + (student.cycleHistory?.length || 0);
-    } else if (student.name?.toUpperCase() === "EMNA LWETTI") {
-      effectiveTotalSessionsCount = 8 + (student.cycleHistory?.length || 0);
-    } else if (student.name?.toUpperCase() === "HANA BRLGHITH") {
-      effectiveTotalSessionsCount = 8 + (student.cycleHistory?.length || 0);
-    } else if (student.name?.toUpperCase() === "NESRINE DRADRA") {
-      effectiveTotalSessionsCount = 7 + (student.cycleHistory?.length || 0);
-    } else if (student.name?.toUpperCase() === "OMAYMA HMIDET") {
-      effectiveTotalSessionsCount = 14 + (student.cycleHistory?.length || 0);
-    } else if (student.name?.toUpperCase() === "RAWAA BOUZIDI") {
-      effectiveTotalSessionsCount = 11 + (student.cycleHistory?.length || 0);
-    } else if (student.name?.toUpperCase() === "EMNA GHODHBEN") {
-      effectiveTotalSessionsCount = 14 + (student.cycleHistory?.length || 0);
-    } else if (student.name?.toUpperCase() === "IBTISSEM BDLEWI") {
-      effectiveTotalSessionsCount = 10 + (student.cycleHistory?.length || 0);
-    } else if (student.name?.toUpperCase() === "MALEK MKAWAR") {
-      effectiveTotalSessionsCount = 23 + (student.cycleHistory?.length || 0);
-    } else if (student.name?.toUpperCase() === "SIWAR KAABECHI") {
-      effectiveTotalSessionsCount = 16 + (student.cycleHistory?.length || 0);
-    } else if (student.name?.toUpperCase() === "BASSMA HAMDEWI") {
-      effectiveTotalSessionsCount = 23 + (student.cycleHistory?.length || 0);
-    } else if (student.name?.toUpperCase() === "SALWA HANI") {
-      effectiveTotalSessionsCount = 12 + (student.cycleHistory?.length || 0);
-    } else if (student.name?.toUpperCase() === "MAISSA BEN NASER") {
-      effectiveTotalSessionsCount = 19 + (student.cycleHistory?.length || 0);
-    } else if (student.name?.toUpperCase() === "TAKWA HARCHI") {
-      effectiveTotalSessionsCount = 12 + (student.cycleHistory?.length || 0);
-    } else if (student.name?.toUpperCase() === "MARIEM TRABELSI") {
-      effectiveTotalSessionsCount = 32 + (student.cycleHistory?.length || 0);
-    } else if (student.name?.toUpperCase() === "RIHAB BOUALI") {
-      effectiveTotalSessionsCount = 54 + (student.cycleHistory?.length || 0);
-    } else if (student.name?.toUpperCase() === "AICHA HERCHI") {
-      effectiveTotalSessionsCount = 57 + (student.cycleHistory?.length || 0);
-    } else if (student.name?.toUpperCase() === "MANEL YOUSFI") {
-      effectiveTotalSessionsCount = 61 + (student.cycleHistory?.length || 0);
-    } else if (student.name?.toUpperCase() === "RIM HIDRI") {
-      effectiveTotalSessionsCount = 60 + (student.cycleHistory?.length || 0);
-    } else if (student.name?.toUpperCase() === "WIDED AHMER") {
-      effectiveTotalSessionsCount = 67 + (student.cycleHistory?.length || 0);
-    } else if (student.name?.toUpperCase() === "SIHEM SALAH") {
-      effectiveTotalSessionsCount = 23 + (student.cycleHistory?.length || 0);
-      finalPaidCount = (student.paidSessionsCount || 0);
-    } else if (student.name?.toUpperCase() === "YOSRA BEN TAHER") {
-      effectiveTotalSessionsCount = 78 + (student.cycleHistory?.length || 0);
-      finalPaidCount = 45 + (student.paidSessionsCount || 0);
-    } else if (student.name?.toUpperCase() === "RIHAB BOUHLEL") {
-      effectiveTotalSessionsCount = 81 + (student.cycleHistory?.length || 0);
-      finalPaidCount = 60 + (student.paidSessionsCount || 0);
-    } else if (student.name?.toUpperCase() === "MARWA HENTATI") {
-      effectiveTotalSessionsCount = 75 + (student.cycleHistory?.length || 0);
-      finalPaidCount = 60 + (student.paidSessionsCount || 0);
-    } else if (student.name?.toUpperCase() === "ARBIA HARATHI") {
-      effectiveTotalSessionsCount = 60 + (student.cycleHistory?.length || 0);
-      finalPaidCount = 40 + (student.paidSessionsCount || 0);
-    } else if (student.name?.toUpperCase() === "ARIJ MNASRI") {
-      effectiveTotalSessionsCount = 1 + (student.cycleHistory?.length || 0);
-      finalPaidCount = (student.paidSessionsCount || 0);
-    } else if (student.name?.trim().toUpperCase() === "HANEN BELAAYEB") {
-      effectiveTotalSessionsCount = 4 + (student.cycleHistory?.length || 0);
-      finalPaidCount = (student.paidSessionsCount || 0);
-    } else if (student.name?.trim().toUpperCase() === "CHAHINEZ MEJDOUB") {
-      effectiveTotalSessionsCount = 1 + (student.cycleHistory?.length || 0);
-      finalPaidCount = (student.paidSessionsCount || 0);
-    } else if (student.name?.trim().toUpperCase() === "DHEKRA GLISSI") {
-      effectiveTotalSessionsCount = 8 + (student.cycleHistory?.length || 0);
-      finalPaidCount = (student.paidSessionsCount || 0);
-    } else if (student.name?.trim().toUpperCase() === "YASSMINE GUIDARA") {
-      effectiveTotalSessionsCount = 10 + (student.cycleHistory?.length || 0);
-      finalPaidCount = (student.paidSessionsCount || 0);
-    } else if (student.name?.trim().toUpperCase() === "NADA CHIHA") {
-      effectiveTotalSessionsCount = 10 + (student.cycleHistory?.length || 0);
-      finalPaidCount = (student.paidSessionsCount || 0);
-    } else if (student.name?.trim().toUpperCase() === "EMNA AKROUT") {
-      effectiveTotalSessionsCount = 19 + (student.cycleHistory?.length || 0);
-      finalPaidCount = (student.paidSessionsCount || 0);
-    } else if (student.name?.trim().toUpperCase() === "OMAYMA HLELI") {
-      effectiveTotalSessionsCount = 14 + (student.cycleHistory?.length || 0);
-      finalPaidCount = (student.paidSessionsCount || 0);
-    } else if (student.name?.trim().toUpperCase() === "EYA ABIDA") {
-      effectiveTotalSessionsCount = 16 + (student.cycleHistory?.length || 0);
-      finalPaidCount = (student.paidSessionsCount || 0);
-    } else if (student.name?.trim().toUpperCase() === "OMAYMA BEN NASSER") {
-      effectiveTotalSessionsCount = 12 + (student.cycleHistory?.length || 0);
-      finalPaidCount = (student.paidSessionsCount || 0);
-    } else if (student.name?.trim().toUpperCase() === "MAYSSAM BOULILA") {
-      effectiveTotalSessionsCount = 32 + (student.cycleHistory?.length || 0);
-      finalPaidCount = (student.paidSessionsCount || 0);
-    } else if (student.name?.trim().toUpperCase() === "AMENI KARWI") {
-      effectiveTotalSessionsCount = 34 + (student.cycleHistory?.length || 0);
-      finalPaidCount = (student.paidSessionsCount || 0);
-    } else if (student.name?.trim().toUpperCase() === "MOUNA DRIRA") {
-      effectiveTotalSessionsCount = 22 + (student.cycleHistory?.length || 0);
-      finalPaidCount = (student.paidSessionsCount || 0);
-    } else if (student.name?.trim().toUpperCase() === "MARIEM ZOUARI") {
-      effectiveTotalSessionsCount = 43 + (student.cycleHistory?.length || 0);
-      finalPaidCount = (student.paidSessionsCount || 0);
-    } else if (student.name?.trim().toUpperCase() === "HALIMA CHMISSI") {
-      effectiveTotalSessionsCount = 70 + (student.cycleHistory?.length || 0);
-      finalPaidCount = (student.paidSessionsCount || 0);
-    } else if (student.name?.trim().toUpperCase() === "MAISSA MALLEK") {
-      effectiveTotalSessionsCount = 45 + (student.cycleHistory?.length || 0);
-      finalPaidCount = (student.paidSessionsCount || 0);
-    } else if (student.name?.trim().toUpperCase() === "SOUAD HAMZA") {
-      effectiveTotalSessionsCount = 42 + (student.cycleHistory?.length || 0);
-      finalPaidCount = (student.paidSessionsCount || 0);
-    } else if (student.name?.trim().toUpperCase() === "SOUHIR GOMRI") {
-      effectiveTotalSessionsCount = 48 + (student.cycleHistory?.length || 0);
-      finalPaidCount = (student.paidSessionsCount || 0);
-    } else if (student.name?.trim().toUpperCase() === "RAWYA CHTOUROU") {
-      effectiveTotalSessionsCount = 49 + (student.cycleHistory?.length || 0);
-      finalPaidCount = (student.paidSessionsCount || 0);
-    } else if (student.name?.trim().toUpperCase() === "MARIEM BOUJELBEN") {
-      effectiveTotalSessionsCount = 52 + (student.cycleHistory?.length || 0);
-      finalPaidCount = (student.paidSessionsCount || 0);
-    } else if (student.name?.trim().toUpperCase() === "WAFA HAMEDI") {
-      effectiveTotalSessionsCount = 44 + (student.cycleHistory?.length || 0);
-      finalPaidCount = (student.paidSessionsCount || 0);
-    } else if (student.name?.trim().toUpperCase() === "RANIA TAKTAK") {
-      effectiveTotalSessionsCount = 50 + (student.cycleHistory?.length || 0);
-      finalPaidCount = (student.paidSessionsCount || 0);
-    } else if (student.name?.trim().toUpperCase() === "CHAYMA AYDI") {
-      effectiveTotalSessionsCount = 102 + (student.cycleHistory?.length || 0);
-      finalPaidCount = (student.paidSessionsCount || 0);
-    } else if (student.name?.trim().toUpperCase() === "FATMA BEN AYED") {
-      effectiveTotalSessionsCount = 41 + (student.cycleHistory?.length || 0);
-      finalPaidCount = (student.paidSessionsCount || 0);
-    } else if (student.name?.trim().toUpperCase() === "ISLEM FOURATI") {
-      effectiveTotalSessionsCount = 50 + (student.cycleHistory?.length || 0);
-      finalPaidCount = (student.paidSessionsCount || 0);
-    } else if (student.name?.trim().toUpperCase() === "RIHEM HAMDI") {
-      effectiveTotalSessionsCount = 48 + (student.cycleHistory?.length || 0);
-      finalPaidCount = (student.paidSessionsCount || 0);
-    } else if (student.name?.trim().toUpperCase() === "HIBA ALLAH CHALBI") {
-      effectiveTotalSessionsCount = 58 + (student.cycleHistory?.length || 0);
-      finalPaidCount = (student.paidSessionsCount || 0);
-    } else if (student.name?.trim().toUpperCase() === "HAJER NEJI") {
-      effectiveTotalSessionsCount = 54 + (student.cycleHistory?.length || 0);
-      finalPaidCount = (student.paidSessionsCount || 0);
-    } else if (student.name?.trim().toUpperCase() === "HANA ABASSI") {
-      effectiveTotalSessionsCount = 40 + (student.cycleHistory?.length || 0);
-      finalPaidCount = (student.paidSessionsCount || 0);
-    } else if (student.name?.trim().toUpperCase() === "AMENI TWETI") {
-      effectiveTotalSessionsCount = 50 + (student.cycleHistory?.length || 0);
-      finalPaidCount = (student.paidSessionsCount || 0);
-    } else if (student.name?.trim().toUpperCase() === "SALSABIL HENI") {
-      effectiveTotalSessionsCount = 57 + (student.cycleHistory?.length || 0);
-      finalPaidCount = (student.paidSessionsCount || 0);
-    }
-
     const owesSessionsCount = Math.max(0, effectiveTotalSessionsCount - finalPaidCount);
     const visuallyNonPayer = owesSessionsCount > 0 && student.paymentStatus === "Payer / تم الخلاص";
 
@@ -523,6 +364,8 @@ function App() {
     if (!currentType) {
       if (student.cycleHistory && student.cycleHistory[historyIndex]) {
         currentType = student.cycleHistory[historyIndex].type;
+      } else if (fallbackType === 'empty-trigger') {
+        currentType = 'none';
       } else {
         currentType = fallbackType;
       }
@@ -530,17 +373,35 @@ function App() {
 
     if (!currentType) return;
 
-    let nextType = 'absent';
+    let nextType = 'present';
     if (currentType === 'present') nextType = 'absent';
     else if (currentType === 'absent') nextType = 'compensated';
-    else if (currentType === 'compensated') nextType = 'present';
+    else if (currentType === 'compensated' || currentType === 'none') nextType = 'present';
+
+    let totalAdjust = 0;
+    // If we are filling a previously empty or deleted slot
+    if (fallbackType === 'empty-trigger') {
+      totalAdjust = 1;
+    }
 
     const newOverrides = { ...(student.historyOverrides || {}), [historyIndex]: nextType };
+    const newTotal = (student.totalSessionsCount || 0) + totalAdjust;
 
     try {
-      await axios.put(`${API_URL}/${studentId}`, { historyOverrides: newOverrides });
-      setStudents(prev => prev.map(s => s._id === studentId ? { ...s, historyOverrides: newOverrides } : s));
-      setSelectedStudentHistory(prev => ({ ...prev, historyOverrides: newOverrides }));
+      await axios.put(`${API_URL}/${studentId}`, {
+        historyOverrides: newOverrides,
+        totalSessionsCount: newTotal
+      });
+      setStudents(prev => prev.map(s => s._id === studentId ? {
+        ...s,
+        historyOverrides: newOverrides,
+        totalSessionsCount: newTotal
+      } : s));
+      setSelectedStudentHistory(prev => ({
+        ...prev,
+        historyOverrides: newOverrides,
+        totalSessionsCount: newTotal
+      }));
     } catch (err) {
       console.error('Error toggling compensated status:', err);
     }
@@ -553,12 +414,43 @@ function App() {
     const student = students.find(s => s._id === studentId);
     if (!student) return;
 
-    const newOverrides = { ...(student.historyOverrides || {}), [historyIndex]: 'deleted' };
+    const hIdx = historyIndex;
+
+    let newCycleHistory = [...(student.cycleHistory || [])];
+    if (hIdx >= 0 && hIdx < newCycleHistory.length) {
+      newCycleHistory.splice(hIdx, 1);
+    }
+
+    // Shift overrides to maintain alignment
+    const oldOverrides = student.historyOverrides || {};
+    const newOverrides = {};
+    Object.keys(oldOverrides).forEach(key => {
+      const k = parseInt(key);
+      if (k < historyIndex) {
+        newOverrides[k] = oldOverrides[k];
+      } else if (k > historyIndex) {
+        newOverrides[k - 1] = oldOverrides[k];
+      }
+    });
+
+    const newTotalCount = Math.max(0, (student.totalSessionsCount || 0) - 1);
 
     try {
-      await axios.put(`${API_URL}/${studentId}`, { historyOverrides: newOverrides });
-      setStudents(prev => prev.map(s => s._id === studentId ? { ...s, historyOverrides: newOverrides } : s));
-      setSelectedStudentHistory(prev => ({ ...prev, historyOverrides: newOverrides }));
+      await axios.put(`${API_URL}/${studentId}`, {
+        historyOverrides: newOverrides,
+        totalSessionsCount: newTotalCount,
+        cycleHistory: newCycleHistory
+      });
+
+      const updatedStudent = {
+        ...student,
+        historyOverrides: newOverrides,
+        totalSessionsCount: newTotalCount,
+        cycleHistory: newCycleHistory
+      };
+
+      setStudents(prev => prev.map(s => s._id === studentId ? updatedStudent : s));
+      setSelectedStudentHistory(updatedStudent);
     } catch (err) {
       console.error('Error deleting session history:', err);
     }

@@ -215,6 +215,40 @@ th {
   animation: spin 1s linear infinite;
 }
 
+.btn-term-modal {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: #10b981;
+  color: white;
+  border: 1px solid #10b981;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-term-modal:hover:not(:disabled) {
+  background: #059669;
+  border-color: #059669;
+}
+
+.btn-term-modal.finished {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.4);
+  color: #fff;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.btn-term-modal:disabled:not(.finished) {
+  opacity: 0.5;
+  cursor: wait;
+}
+
 .cycle-dot.attended {
   background: #10b981;
 }
