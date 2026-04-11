@@ -138,6 +138,22 @@ const RegistrationModal = ({ isOpen, onClose, onSubmit, initialData }) => {
               <Upload size={20} color="#d35400" />
               <span>{imageName || "Télécharger la photo de la carte"}</span>
             </label>
+            {formData.idCardImage && (
+              <div className="id-card-preview-container animated-fade">
+                <img src={formData.idCardImage} alt="CIN Preview" className="id-card-preview" />
+                <button 
+                  type="button" 
+                  className="remove-image-btn"
+                  onClick={() => {
+                    setFormData(prev => ({ ...prev, idCardImage: null }));
+                    setImageName('');
+                  }}
+                  title="Supprimer l'image"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="form-grid">

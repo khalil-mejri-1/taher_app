@@ -235,3 +235,40 @@ input[type="radio"] {
   transform: translateY(-2px);
   box-shadow: 0 10px 20px rgba(160, 82, 45, 0.2);
 }
+
+.id-card-preview-container {
+  margin-top: 10px;
+  position: relative;
+  width: fit-content;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+}
+
+.id-card-preview {
+  display: block;
+  max-width: 100%;
+  height: 140px;
+  object-fit: cover;
+}
+
+.remove-image-btn {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  background: rgba(0, 0, 0, 0.5);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.remove-image-btn:hover {
+  background: rgba(220, 38, 38, 0.8);
+}
