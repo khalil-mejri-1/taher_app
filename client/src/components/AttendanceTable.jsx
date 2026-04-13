@@ -564,24 +564,37 @@ const AttendanceTable = ({
                   <div className="cycle-tracker">
                     {(() => {
                       const maxS = isSundayOnly(student.planning) ? 5 : 8;
-                      const totalSessions = student.totalSessionsCount || 0;
-                      const sessionsInCurrentCycle = totalSessions % maxS || (totalSessions > 0 ? maxS : 0);
+                      const history = student.cycleHistory || [];
+                      const overrides = student.historyOverrides || {};
+                      
+                      let lastIndex = -1;
+                      // Max 24 months, check every possible dot
+                      for (let i = 0; i < 24 * maxS; i++) {
+                        const t = overrides[i] || history[i]?.type;
+                        if (t && t !== 'deleted' && t !== 'empty-trigger') {
+                          lastIndex = i;
+                        }
+                      }
+                      
+                      let targetMonthIndex = 0;
+                      if (lastIndex !== -1) {
+                        targetMonthIndex = Math.floor(lastIndex / maxS);
+                      }
+                      
                       const dots = [];
                       for (let i = 0; i < maxS; i++) {
                         let statusClass = '';
-                        if (i < sessionsInCurrentCycle) {
-                          const history = student.cycleHistory || [];
-                          const historyIndex = (Math.floor((totalSessions - 0.1) / maxS) * maxS) + i;
-                          const session = history[historyIndex];
-                          const effectiveType = student.historyOverrides?.[historyIndex] || session?.type;
-                          if (effectiveType && effectiveType !== 'deleted') {
-                            if (effectiveType === 'present') {
-                              statusClass = 'attended';
-                            } else if (effectiveType === 'compensated') {
-                              statusClass = 'compensated';
-                            } else {
-                              statusClass = 'missed';
-                            }
+                        const historyIndex = targetMonthIndex * maxS + i;
+                        const session = history[historyIndex];
+                        const effectiveType = overrides[historyIndex] || session?.type;
+                        
+                        if (effectiveType && effectiveType !== 'deleted' && effectiveType !== 'empty-trigger') {
+                          if (effectiveType === 'present') {
+                            statusClass = 'attended';
+                          } else if (effectiveType === 'compensated') {
+                            statusClass = 'compensated';
+                          } else {
+                            statusClass = 'missed';
                           }
                         }
                         dots.push(<span key={i} className={`cycle-dot ${statusClass}`}></span>);
