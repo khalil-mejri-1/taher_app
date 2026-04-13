@@ -53,8 +53,21 @@ const AttendanceTable = ({
     let result = students.map(s => {
       let sTemp = { ...s };
 
+      const maxS = isSundayOnly(sTemp.planning) ? 5 : 8;
+      const history = sTemp.cycleHistory || [];
+      const overrides = sTemp.historyOverrides || {};
+      let lastIndex = -1;
+      for (let i = 0; i < 24 * maxS; i++) {
+        const t = overrides[i] || history[i]?.type;
+        if (t && t !== 'deleted' && t !== 'empty-trigger') {
+          lastIndex = i;
+        }
+      }
+      const actualTotalCount = lastIndex !== -1 ? lastIndex + 1 : 0;
+      const effectiveTotalCount = Math.max(Number(sTemp.totalSessionsCount || 0), actualTotalCount);
+
       // Dynamic rule: If there are unpaid sessions but status says "Payer", switch to "Non Payer" visually
-      const owesSessionsCount = Math.max(0, (sTemp.totalSessionsCount || 0) - (sTemp.paidSessionsCount || 0));
+      const owesSessionsCount = Math.max(0, effectiveTotalCount - Number(sTemp.paidSessionsCount || 0));
       if (owesSessionsCount > 0 && sTemp.paymentStatus === "Payer / تم الخلاص") {
         sTemp.paymentStatus = "Non Payer / لم يدفع بعد";
       }
@@ -606,7 +619,20 @@ const AttendanceTable = ({
                 <td>
                   <div className="payment-cell">
                     {(() => {
-                      const totalCount = Number(student.totalSessionsCount || 0);
+                      const maxS = isSundayOnly(student.planning) ? 5 : 8;
+                      const history = student.cycleHistory || [];
+                      const overrides = student.historyOverrides || {};
+                      
+                      let lastIndex = -1;
+                      for (let i = 0; i < 24 * maxS; i++) {
+                        const t = overrides[i] || history[i]?.type;
+                        if (t && t !== 'deleted' && t !== 'empty-trigger') {
+                          lastIndex = i;
+                        }
+                      }
+                      
+                      const actualTotalCount = lastIndex !== -1 ? lastIndex + 1 : 0;
+                      const totalCount = Math.max(Number(student.totalSessionsCount || 0), actualTotalCount);
                       const paidCount = Number(student.paidSessionsCount || 0);
                       const tarif = student.tarif || 80;
                       const debtNodes = [];

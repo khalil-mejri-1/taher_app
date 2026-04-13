@@ -286,7 +286,19 @@ function App() {
     let updates = { paymentStatus: newStatus };
     let finalPaidCount = student.paidSessionsCount || 0;
     let finalMoneyPaid = student.totalMoneyPaid || 0;
-    let effectiveTotalSessionsCount = student.totalSessionsCount || 0;
+    
+    const history = student.cycleHistory || [];
+    const overrides = student.historyOverrides || {};
+    let lastIndex = -1;
+    for (let i = 0; i < 24 * maxSessions; i++) {
+      const t = overrides[i] || history[i]?.type;
+      if (t && t !== 'deleted' && t !== 'empty-trigger') {
+        lastIndex = i;
+      }
+    }
+    const actualTotalCount = lastIndex !== -1 ? lastIndex + 1 : 0;
+    let effectiveTotalSessionsCount = Math.max(Number(student.totalSessionsCount || 0), actualTotalCount);
+    
     const owesSessionsCount = Math.max(0, effectiveTotalSessionsCount - finalPaidCount);
     const visuallyNonPayer = owesSessionsCount > 0 && student.paymentStatus === "Payer / تم الخلاص";
 
@@ -341,7 +353,7 @@ function App() {
     }
 
     // Auto-revert status if debt remains
-    if ((student.totalSessionsCount || 0) > finalPaidCount) {
+    if (effectiveTotalSessionsCount > finalPaidCount) {
       updates.paymentStatus = "Non Payer / لم يدفع بعد";
       if (newStatus.includes("Payer")) {
         const sessionPrice = (student.tarif || 80) / maxSessions;
@@ -507,9 +519,21 @@ function App() {
 
     const newPaidSessionsCount = Math.max(0, (student.paidSessionsCount || 0) + paidSessionsChange);
 
+    const history = student.cycleHistory || [];
+    const overrides = student.historyOverrides || {};
+    let lastIndex = -1;
+    for (let i = 0; i < 24 * maxSessions; i++) {
+      const t = overrides[i] || history[i]?.type;
+      if (t && t !== 'deleted' && t !== 'empty-trigger') {
+        lastIndex = i;
+      }
+    }
+    const actualTotalCount = lastIndex !== -1 ? lastIndex + 1 : 0;
+    const effectiveTotalSessionsCount = Math.max(Number(student.totalSessionsCount || 0), actualTotalCount);
+
     // Auto update paymentStatus based on the new balance
     let newPaymentStatus = student.paymentStatus;
-    if ((student.totalSessionsCount || 0) > newPaidSessionsCount) {
+    if (effectiveTotalSessionsCount > newPaidSessionsCount) {
       newPaymentStatus = "Non Payer / لم يدفع بعد";
     } else {
       newPaymentStatus = "Payer / تم الخلاص";
