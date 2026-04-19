@@ -56,9 +56,29 @@ const AttendanceTable = ({
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8; // Number of students per page
 
+  const getWeekDay = (baseDate, daysToAdd) => {
+    const newDate = new Date(baseDate);
+    newDate.setDate(newDate.getDate() + daysToAdd);
+    return newDate;
+  };
+
+  const baseWeekDate = selectedWeekData ? new Date(selectedWeekData.startDate) : currentWeekDate;
+  const mardiDate = baseWeekDate;
+  const mercrediDate = getWeekDay(baseWeekDate, 1);
+  const samediDate = getWeekDay(baseWeekDate, 4);
+  const dimancheDate = getWeekDay(baseWeekDate, 5);
+
   const enhancedStudents = useMemo(() => {
+    const weekEndDate = new Date(dimancheDate);
+    weekEndDate.setHours(23, 59, 59, 999);
+
     return students.map(s => {
       let sTemp = { ...s };
+
+      if (selectedWeekData) {
+        // Filter history to only include sessions up to the end of the historical week
+        sTemp.cycleHistory = (sTemp.cycleHistory || []).filter(h => new Date(h.date) <= weekEndDate);
+      }
 
       const maxS = isSundayOnly(sTemp.planning) ? 5 : 8;
       const history = sTemp.cycleHistory || [];
@@ -84,7 +104,7 @@ const AttendanceTable = ({
 
       return sTemp;
     });
-  }, [students]);
+  }, [students, selectedWeekData, currentWeekDate, dimancheDate]);
 
   const filteredAndSortedStudents = useMemo(() => {
     let result = [...enhancedStudents];
@@ -134,9 +154,10 @@ const AttendanceTable = ({
     if (!d1 || !d2) return false;
     const date1 = new Date(d1);
     const date2 = new Date(d2);
-    return date1.getFullYear() === date2.getFullYear() &&
-           date1.getMonth() === date2.getMonth() &&
-           date1.getDate() === date2.getDate();
+    // Use UTC for consistent comparison across environments
+    return date1.getUTCFullYear() === date2.getUTCFullYear() &&
+           date1.getUTCMonth() === date2.getUTCMonth() &&
+           date1.getUTCDate() === date2.getUTCDate();
   };
 
   // Map session keys to planning paths
@@ -370,14 +391,8 @@ const AttendanceTable = ({
     return date.toISOString().split('T')[0];
   };
 
-  const getWeekDay = (baseDate, daysToAdd) => {
-    const newDate = new Date(baseDate);
-    newDate.setDate(newDate.getDate() + daysToAdd);
-    return newDate;
-  };
-
   const getSessionDate = (sessionKey) => {
-    const baseDate = currentWeekDate;
+    const baseDate = baseWeekDate;
     if (sessionKey.startsWith('mardi')) return baseDate;
     if (sessionKey.startsWith('mercredi')) return getWeekDay(baseDate, 1);
     if (sessionKey.startsWith('samedi')) return getWeekDay(baseDate, 4);
@@ -385,46 +400,39 @@ const AttendanceTable = ({
     return null;
   };
 
-  const baseWeekDate = selectedWeekData ? new Date(selectedWeekData.startDate) : currentWeekDate;
-  const mardiDate = baseWeekDate;
-  const mercrediDate = getWeekDay(baseWeekDate, 1);
-  const samediDate = getWeekDay(baseWeekDate, 4);
-  const dimancheDate = getWeekDay(baseWeekDate, 5);
-
   const isPresent = (student, sessionKey) => {
-    let inSnapshotAttendance = false;
-    
-    // 1. Check if we're in history view and check snapshot record
+    const sessionDate = getSessionDate(sessionKey);
+    if (!sessionDate) return false;
+
+    // 1. Snapshot check (History mode)
     if (selectedWeekData) {
       const record = selectedWeekData.records.find(r => 
         (r.studentId?._id || r.studentId || "").toString() === (student?._id || "").toString()
       );
-      inSnapshotAttendance = record?.attendance?.some(a => a.session === sessionKey && a.present) || false;
+      if (record?.attendance?.some(a => a.session === sessionKey && a.present)) return true;
     }
 
-    // 2. Check pending changes (only for live view)
+    // 2. Persistent History check (Dated) - Valid for ALL views
+    // This handles recorded/finished sessions which are the ultimate truth
+    const inHistory = student.cycleHistory?.some(h => 
+      isSameDay(h.date, sessionDate) &&
+      (h.type === 'present' || h.type === 'attended' || h.type === 'compensated' || h.type === 'payer')
+    );
+    if (inHistory) return true;
+
+    // 3. Live mode specific checks
     if (!selectedWeekData) {
+      // Pending local changes
       const studentChanges = pendingChanges[student._id] || {};
       if (studentChanges[sessionKey] !== undefined) {
         return studentChanges[sessionKey];
       }
-    }
 
-    // 3. Check current week attendance (must match session date)
-    const sessionDate = getSessionDate(sessionKey);
-    const inCurrentAttendance = student.attendance?.some(a => 
-      a.session === sessionKey && a.present && isSameDay(a.date, sessionDate)
-    );
-    
-    if (inSnapshotAttendance || inCurrentAttendance) return true;
-
-    // 4. Check historical records (cycleHistory)
-    if (sessionDate) {
-      const inHistory = student.cycleHistory?.some(h => 
-        isSameDay(h.date, sessionDate) &&
-        (h.type === 'attended' || h.type === 'compensated' || h.type === 'present' || h.type === 'payer')
+      // Current week unsaved attendance
+      const inCurrentAttendance = student.attendance?.some(a => 
+        a.session === sessionKey && a.present && isSameDay(a.date, sessionDate)
       );
-      if (inHistory) return true;
+      if (inCurrentAttendance) return true;
     }
 
     return false;
@@ -433,7 +441,7 @@ const AttendanceTable = ({
   const isSessionFinished = (sessionKey) => {
     // If in history view, check specifically the saved list
     if (selectedWeekData) {
-      if (selectedWeekData.finishedSessions?.includes(sessionKey)) return true;
+      return selectedWeekData.finishedSessions?.includes(sessionKey) || false;
     }
 
     // Also check auto-detection from history/attendance 
@@ -455,7 +463,7 @@ const AttendanceTable = ({
 
     const totalRecorded = recordedCount + currentAttendanceCount;
 
-    return (totalRecorded > 0 && totalRecorded >= sessionStudents.length / 2) || (finishedSessions.includes(sessionKey) && !selectedWeekData);
+    return (totalRecorded > 0 && totalRecorded >= sessionStudents.length / 2) || finishedSessions.includes(sessionKey);
   };
 
   const handleFinish = async (sessionKey) => {

@@ -9,8 +9,8 @@ import FinancePage from './components/FinancePage';
 import NotificationModal from './components/NotificationModal';
 import './index.css';
 
-// const BASE_URL = 'https://taher-app.vercel.app';
-const BASE_URL = 'http://localhost:5000';
+const BASE_URL = 'https://taher-app.vercel.app';
+// const BASE_URL = 'http://localhost:5000';
 const API_URL = `${BASE_URL}/api/students`;
 
 function App() {
@@ -180,27 +180,27 @@ function App() {
     // Calculate report data using both snapshot and live history
     const reportRecords = students.filter(s => !s.isArchived).map(student => {
       const snapshotRecord = week.records.find(r => (r.studentId?._id || r.studentId || "").toString() === student._id.toString());
-      
+
       const attendance = sessions.map(s => {
         // Check if student is even programmed for this session
         const isProgrammed = student.planning?.[s.dayKey]?.[s.type];
         if (!isProgrammed) return { session: s.key, status: 'empty' };
 
         const sessionDate = getDateAtOffset(s.offset);
-        
+
         // Check snapshot first
         const inSnapshot = snapshotRecord?.attendance?.find(a => a.session === s.key && a.present);
         if (inSnapshot) return { session: s.key, status: 'present' };
-        
+
         // Then check live history
-        const inHistory = student.cycleHistory?.some(h => 
-          isSameDay(h.date, sessionDate) && 
+        const inHistory = student.cycleHistory?.some(h =>
+          isSameDay(h.date, sessionDate) &&
           (h.type === 'attended' || h.type === 'compensated' || h.type === 'present' || h.type === 'payer')
         );
-        
+
         return { session: s.key, status: inHistory ? 'present' : 'absent' };
       });
-      
+
       return { studentName: student.name, attendance };
     });
 
@@ -254,9 +254,9 @@ function App() {
               <tr>
                 <th rowspan="2">Informations Étudiant</th>
                 ${sessions.map(s => {
-                  const d = getDateAtOffset(s.offset);
-                  return `<th class="${s.day.toLowerCase()}">${formatDateShort(d)}<br/>${s.day}</th>`;
-                }).join('')}
+      const d = getDateAtOffset(s.offset);
+      return `<th class="${s.day.toLowerCase()}">${formatDateShort(d)}<br/>${s.day}</th>`;
+    }).join('')}
               </tr>
               <tr>
                 ${sessions.map(s => `<th class="${s.day.toLowerCase()}">${s.label}</th>`).join('')}
@@ -267,14 +267,14 @@ function App() {
                 <tr>
                   <td class="student-info">${record.studentName}</td>
                   ${sessions.map(s => {
-                    const att = record.attendance.find(a => a.session === s.key);
-                    if (att.status === 'empty') return `<td class="empty-cell">—</td>`;
-                    return `
+      const att = record.attendance.find(a => a.session === s.key);
+      if (att.status === 'empty') return `<td class="empty-cell">—</td>`;
+      return `
                       <td class="${s.day.toLowerCase()}">
                         ${att.status === 'present' ? '<span class="present">✓</span>' : '<span class="absent">✕</span>'}
                       </td>
                     `;
-                  }).join('')}
+    }).join('')}
                 </tr>
               `).join('')}
             </tbody>
@@ -373,9 +373,9 @@ function App() {
     if (!d1 || !d2) return false;
     const date1 = new Date(d1);
     const date2 = new Date(d2);
-    return date1.getFullYear() === date2.getFullYear() &&
-      date1.getMonth() === date2.getMonth() &&
-      date1.getDate() === date2.getDate();
+    return date1.getUTCFullYear() === date2.getUTCFullYear() &&
+      date1.getUTCMonth() === date2.getUTCMonth() &&
+      date1.getUTCDate() === date2.getUTCDate();
   };
 
   const getSessionDate = (sessionKey) => {
