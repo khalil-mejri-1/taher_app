@@ -33,6 +33,28 @@ router.put("/:id", async (req, res) => {
   }
 });
 
+// Batch update attendance
+router.post("/batch-attendance", async (req, res) => {
+  const { updates } = req.body; // Array of { id, attendance, cycle }
+  try {
+    const bulkOps = updates.map(update => ({
+      updateOne: {
+        filter: { _id: update.id },
+        update: { 
+          $set: { 
+            attendance: update.attendance,
+            cycle: update.cycle
+          } 
+        }
+      }
+    }));
+    await Student.bulkWrite(bulkOps);
+    res.json({ message: "Attendance updated successfully" });
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
 // Delete a student
 router.delete("/:id", async (req, res) => {
   try {

@@ -41,7 +41,10 @@ const AttendanceTable = ({
   const [loadingSession, setLoadingSession] = useState(null); // sessionKey
   const [isWeeksHistoryModalOpen, setIsWeeksHistoryModalOpen] = useState(false);
   const [sessionModal, setSessionModal] = useState(null); // { key, label, day }
+  const [pendingChanges, setPendingChanges] = useState({}); // { studentId: { sessionKey: boolean } }
+  const [isSavingBatch, setIsSavingBatch] = useState(false);
 
+  const [sessionFilter, setSessionFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('default');
   
@@ -49,8 +52,8 @@ const AttendanceTable = ({
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8; // Number of students per page
 
-  const filteredAndSortedStudents = useMemo(() => {
-    let result = students.map(s => {
+  const enhancedStudents = useMemo(() => {
+    return students.map(s => {
       let sTemp = { ...s };
 
       const maxS = isSundayOnly(sTemp.planning) ? 5 : 8;
@@ -65,6 +68,9 @@ const AttendanceTable = ({
       }
       const actualTotalCount = lastIndex !== -1 ? lastIndex + 1 : 0;
       const effectiveTotalCount = Math.max(Number(sTemp.totalSessionsCount || 0), actualTotalCount);
+      
+      // Update sTemp with accurate count for use in other parts of the component (e.g. print sheet)
+      sTemp.totalSessionsCount = effectiveTotalCount;
 
       // Dynamic rule: If there are unpaid sessions but status says "Payer", switch to "Non Payer" visually
       const owesSessionsCount = Math.max(0, effectiveTotalCount - Number(sTemp.paidSessionsCount || 0));
@@ -74,6 +80,17 @@ const AttendanceTable = ({
 
       return sTemp;
     });
+  }, [students]);
+
+  const filteredAndSortedStudents = useMemo(() => {
+    let result = [...enhancedStudents];
+
+    if (sessionFilter !== 'all') {
+      const parts = sessionFilter.split('_');
+      if (parts.length === 2) {
+        result = result.filter(s => s.planning?.[parts[0]]?.[parts[1]]);
+      }
+    }
 
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
@@ -86,20 +103,18 @@ const AttendanceTable = ({
     if (sortBy === 'alphabetical') {
       result.sort((a, b) => a.name.localeCompare(b.name));
     } else if (sortBy === 'newest') {
-      // Assuming new records appear at the end, reverse brings newest first.
-      // Alternatively, sort by _id descending.
       result.sort((a, b) => b._id.localeCompare(a._id));
     } else if (sortBy === 'oldest') {
       result.sort((a, b) => a._id.localeCompare(b._id));
     }
 
     return result;
-  }, [students, searchQuery, sortBy]);
+  }, [enhancedStudents, searchQuery, sortBy, sessionFilter]);
 
   // Handle Pagination resets
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, sortBy, students.length]);
+  }, [searchQuery, sortBy, sessionFilter, students.length]);
 
   const totalPages = Math.ceil(filteredAndSortedStudents.length / itemsPerPage);
   const paginatedStudents = useMemo(() => {
@@ -128,16 +143,104 @@ const AttendanceTable = ({
   const getStudentsForSession = (sessionKey) => {
     const planningFn = SESSION_PLANNING_MAP[sessionKey];
     if (!planningFn) return [];
-    return students.filter(s => planningFn(s.planning));
+    return enhancedStudents.filter(s => planningFn(s.planning));
   };
 
-  const handleCheckClick = async (studentId, sessionKey) => {
-    setLoadingCheck({ studentId, sessionKey });
-    try {
-      await onMarkAttendance(studentId, sessionKey);
-    } finally {
-      setLoadingCheck(null);
+  const handleCheckClick = (studentId, sessionKey) => {
+    if (isArchivesView || selectedWeekData) return;
+    
+    const student = students.find(s => s._id === studentId);
+    if (!student) return;
+
+    setPendingChanges(prev => {
+      const studentChanges = prev[studentId] || {};
+      
+      // Determine if currently present considering pending changes
+      const currentPresentInPending = studentChanges[sessionKey];
+      const currentlyPresent = currentPresentInPending !== undefined 
+        ? currentPresentInPending 
+        : (student.attendance?.some(a => a.session === sessionKey && a.present) || false);
+        
+      const nextPresent = !currentlyPresent;
+      
+      // Check if nextPresent matches the original state in the database
+      const originalPresent = student.attendance?.some(a => a.session === sessionKey && a.present) || false;
+      
+      const newStudentChanges = { ...studentChanges };
+      
+      if (nextPresent === originalPresent) {
+        // If we toggled back to the original state, remove this session from pending
+        delete newStudentChanges[sessionKey];
+      } else {
+        // Otherwise, record the change
+        newStudentChanges[sessionKey] = nextPresent;
+      }
+      
+      const newPending = { ...prev };
+      if (Object.keys(newStudentChanges).length === 0) {
+        // If no more changes for this student, remove the student entry
+        delete newPending[studentId];
+      } else {
+        newPending[studentId] = newStudentChanges;
+      }
+      
+      return newPending;
+    });
+  };
+
+  const handleSaveBatch = async () => {
+    if (Object.keys(pendingChanges).length === 0) return;
+    
+    setIsSavingBatch(true);
+    const updates = [];
+
+    for (const studentId of Object.keys(pendingChanges)) {
+      const student = students.find(s => s._id === studentId);
+      if (!student) continue;
+
+      let newAttendance = [...(student.attendance || [])];
+      let cycleChange = 0;
+
+      const studentSessionChanges = pendingChanges[studentId];
+      for (const sessionKey of Object.keys(studentSessionChanges)) {
+        const nextPresent = studentSessionChanges[sessionKey];
+        const originalPresent = student.attendance?.some(a => a.session === sessionKey && a.present);
+
+        if (nextPresent === originalPresent) continue; // No change for this session
+
+        if (nextPresent) {
+          // Add if not present
+          newAttendance.push({ date: new Date(), session: sessionKey, present: true });
+          cycleChange += 1;
+        } else {
+          // Remove if present
+          newAttendance = newAttendance.filter(a => a.session !== sessionKey);
+          cycleChange -= 1;
+        }
+      }
+
+      if (cycleChange === 0 && newAttendance.length === student.attendance?.length) continue;
+
+      const maxS = isSundayOnly(student.planning) ? 5 : 8;
+      const newCompleted = Math.max(0, Math.min(maxS, (student.cycle?.completed || 0) + cycleChange));
+
+      updates.push({
+        id: studentId,
+        attendance: newAttendance,
+        cycle: { ...student.cycle, completed: newCompleted }
+      });
     }
+
+    if (updates.length > 0) {
+      const success = await onBatchAttendance(updates);
+      if (success) {
+        setPendingChanges({});
+        if (customAlert) customAlert("Succès", "الحضور سجل بنجاح دفعة واحدة");
+      }
+    } else {
+      setPendingChanges({}); // No real updates found
+    }
+    setIsSavingBatch(false);
   };
 
   const printAttendanceSheet = (sessionKey, label, day, sessionStudents) => {
@@ -233,6 +336,15 @@ const AttendanceTable = ({
     return newDate;
   };
 
+  const getSessionDate = (sessionKey) => {
+    const baseDate = currentWeekDate;
+    if (sessionKey.startsWith('mardi')) return baseDate;
+    if (sessionKey.startsWith('mercredi')) return getWeekDay(baseDate, 1);
+    if (sessionKey.startsWith('samedi')) return getWeekDay(baseDate, 4);
+    if (sessionKey.startsWith('dimanche')) return getWeekDay(baseDate, 5);
+    return null;
+  };
+
   const baseWeekDate = selectedWeekData ? new Date(selectedWeekData.startDate) : currentWeekDate;
   const mardiDate = baseWeekDate;
   const mercrediDate = getWeekDay(baseWeekDate, 1);
@@ -244,6 +356,12 @@ const AttendanceTable = ({
       const record = selectedWeekData.records.find(r => r.studentId === student._id);
       return record?.attendance?.some(a => a.session === sessionKey && a.present);
     }
+
+    // Check pending changes first
+    if (pendingChanges[student._id] && pendingChanges[student._id][sessionKey] !== undefined) {
+      return pendingChanges[student._id][sessionKey];
+    }
+
     return student.attendance?.some(a => a.session === sessionKey && a.present);
   };
 
@@ -263,18 +381,10 @@ const AttendanceTable = ({
       if (success) {
         if (isFinished) {
           // Revert: remove from finishedSessions
-          setFinishedSessions(prev => {
-            const updated = prev.filter(k => k !== sessionKey);
-            localStorage.setItem('finishedSessions', JSON.stringify(updated));
-            return updated;
-          });
+          setFinishedSessions(prev => prev.filter(k => k !== sessionKey));
         } else {
           // Finish: add to finishedSessions
-          setFinishedSessions(prev => {
-            const updated = [...prev, sessionKey];
-            localStorage.setItem('finishedSessions', JSON.stringify(updated));
-            return updated;
-          });
+          setFinishedSessions(prev => [...prev, sessionKey]);
         }
       }
     } finally {
@@ -292,7 +402,6 @@ const AttendanceTable = ({
       const success = await onNewWeek(finishedSessions);
       if (success) {
         setFinishedSessions([]);
-        localStorage.removeItem('finishedSessions');
         customAlert("Succès", "Nouvelle semaine démarrée !");
       }
     }
@@ -302,7 +411,27 @@ const AttendanceTable = ({
     if (selectedWeekData) {
       return selectedWeekData.finishedSessions?.includes(sessionKey);
     }
-    return finishedSessions.includes(sessionKey);
+    
+    // Explicitly marked as finished in the current week
+    if (finishedSessions.includes(sessionKey)) return true;
+
+    // Auto-detect based on history records for the current date
+    const sessionDate = getSessionDate(sessionKey);
+    if (!sessionDate) return false;
+    
+    const dateStr = sessionDate.toLocaleDateString('fr-FR');
+    
+    // Only auto-detect if we have students for this session
+    const sessionStudents = getStudentsForSession(sessionKey);
+    if (sessionStudents.length === 0) return false;
+
+    // If at least half of the students have a history entry for this date/session, mark as finished
+    // (We use a threshold to avoid a single manual history add from greying out the whole session button)
+    const recordedCount = sessionStudents.filter(s => 
+      s.cycleHistory?.some(h => new Date(h.date).toLocaleDateString('fr-FR') === dateStr)
+    ).length;
+
+    return recordedCount > 0 && recordedCount >= sessionStudents.length / 2;
   };
 
   return (
@@ -325,6 +454,30 @@ const AttendanceTable = ({
                 <input type="date" value={formatDateForInput(currentWeekDate)} onChange={handleDatePickerChange} />
               </div>
               <button className="btn-new-week" onClick={handleNewWeekClick}>Nouvelle Semaine</button>
+              {Object.keys(pendingChanges).length > 0 && (
+                <button 
+                  className={`btn-save-batch ${isSavingBatch ? 'working' : ''}`} 
+                  onClick={handleSaveBatch}
+                  disabled={isSavingBatch}
+                  style={{
+                    backgroundColor: '#10b981',
+                    color: 'white',
+                    padding: '8px 16px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                    animation: 'pulse 2s infinite'
+                  }}
+                >
+                  {isSavingBatch ? <Loader2 size={18} className="spin" /> : <CheckCircle size={18} />}
+                  ارسال الحضور ({Object.keys(pendingChanges).length})
+                </button>
+              )}
 
             </>
           )}
@@ -349,6 +502,58 @@ const AttendanceTable = ({
           <option value="newest">Les plus récents en premier</option>
           <option value="oldest">Les plus anciens en premier</option>
         </select>
+      </div>
+
+      <div className="session-filters-bar" style={{ display: 'flex', gap: '10px', marginBottom: '15px', padding: '0 10px', overflowX: 'auto', paddingBottom: '5px' }}>
+        <button 
+          className={`session-filter-btn ${sessionFilter === 'all' ? 'active' : ''}`}
+          onClick={() => setSessionFilter('all')}
+          style={{ padding: '8px 16px', borderRadius: '20px', border: sessionFilter === 'all' ? 'none' : '1px solid #e2e8f0', background: sessionFilter === 'all' ? '#10b981' : 'white', color: sessionFilter === 'all' ? 'white' : '#64748b', fontWeight: '500', cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.2s' }}
+        >
+          Tous les étudiants
+        </button>
+        <button 
+          className={`session-filter-btn ${sessionFilter === 'mardi_matin' ? 'active' : ''}`}
+          onClick={() => setSessionFilter('mardi_matin')}
+          style={{ padding: '8px 16px', borderRadius: '20px', border: sessionFilter === 'mardi_matin' ? 'none' : '1px solid #e2e8f0', background: sessionFilter === 'mardi_matin' ? '#3b82f6' : 'white', color: sessionFilter === 'mardi_matin' ? 'white' : '#64748b', fontWeight: '500', cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.2s' }}
+        >
+          Mardi Matin
+        </button>
+        <button 
+          className={`session-filter-btn ${sessionFilter === 'mercredi_matin' ? 'active' : ''}`}
+          onClick={() => setSessionFilter('mercredi_matin')}
+          style={{ padding: '8px 16px', borderRadius: '20px', border: sessionFilter === 'mercredi_matin' ? 'none' : '1px solid #e2e8f0', background: sessionFilter === 'mercredi_matin' ? '#3b82f6' : 'white', color: sessionFilter === 'mercredi_matin' ? 'white' : '#64748b', fontWeight: '500', cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.2s' }}
+        >
+          Mercredi Matin
+        </button>
+        <button 
+          className={`session-filter-btn ${sessionFilter === 'mercredi_amidi' ? 'active' : ''}`}
+          onClick={() => setSessionFilter('mercredi_amidi')}
+          style={{ padding: '8px 16px', borderRadius: '20px', border: sessionFilter === 'mercredi_amidi' ? 'none' : '1px solid #e2e8f0', background: sessionFilter === 'mercredi_amidi' ? '#3b82f6' : 'white', color: sessionFilter === 'mercredi_amidi' ? 'white' : '#64748b', fontWeight: '500', cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.2s' }}
+        >
+          Mercredi A.Midi
+        </button>
+        <button 
+          className={`session-filter-btn ${sessionFilter === 'samedi_matin' ? 'active' : ''}`}
+          onClick={() => setSessionFilter('samedi_matin')}
+          style={{ padding: '8px 16px', borderRadius: '20px', border: sessionFilter === 'samedi_matin' ? 'none' : '1px solid #e2e8f0', background: sessionFilter === 'samedi_matin' ? '#3b82f6' : 'white', color: sessionFilter === 'samedi_matin' ? 'white' : '#64748b', fontWeight: '500', cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.2s' }}
+        >
+          Samedi Matin
+        </button>
+        <button 
+          className={`session-filter-btn ${sessionFilter === 'samedi_amidi' ? 'active' : ''}`}
+          onClick={() => setSessionFilter('samedi_amidi')}
+          style={{ padding: '8px 16px', borderRadius: '20px', border: sessionFilter === 'samedi_amidi' ? 'none' : '1px solid #e2e8f0', background: sessionFilter === 'samedi_amidi' ? '#3b82f6' : 'white', color: sessionFilter === 'samedi_amidi' ? 'white' : '#64748b', fontWeight: '500', cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.2s' }}
+        >
+          Samedi A.Midi
+        </button>
+        <button 
+          className={`session-filter-btn ${sessionFilter === 'dimanche_unique' ? 'active' : ''}`}
+          onClick={() => setSessionFilter('dimanche_unique')}
+          style={{ padding: '8px 16px', borderRadius: '20px', border: sessionFilter === 'dimanche_unique' ? 'none' : '1px solid #e2e8f0', background: sessionFilter === 'dimanche_unique' ? '#3b82f6' : 'white', color: sessionFilter === 'dimanche_unique' ? 'white' : '#64748b', fontWeight: '500', cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.2s' }}
+        >
+          Dimanche Unique
+        </button>
       </div>
 
       <div className="table-wrapper">
@@ -515,9 +720,12 @@ const AttendanceTable = ({
                   <div className="student-info-cell">
                     <div className="student-avatar">
                       {student.name[0]}
-                      {student.totalSessionsCount > 0 && student.totalSessionsCount % 8 === 0 && (
-                        <div className="cycle-indicator" title="Cycle terminé !">!</div>
-                      )}
+                      {(() => {
+                        const maxS = isSundayOnly(student.planning) ? 5 : 8;
+                        return student.totalSessionsCount > 0 && student.totalSessionsCount % maxS === 0 && (
+                          <div className="cycle-indicator" title="Cycle terminé !">!</div>
+                        );
+                      })()}
                     </div>
                     <div className="student-details">
                       <strong>{student.name}</strong>

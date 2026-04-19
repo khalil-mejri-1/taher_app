@@ -13,10 +13,10 @@ const Navbar = ({ onAddStudent, onResetSessions }) => {
       <div className="navbar-right">
 
 
-        <button className="btn btn-orange" onClick={onResetSessions}>
+        {/* <button className="btn btn-orange" onClick={onResetSessions}>
           <RotateCcw size={18} />
           <span>تصفير الحصص</span>
-        </button>
+        </button> */}
 
 
         <button className="btn btn-brown" onClick={onAddStudent}>

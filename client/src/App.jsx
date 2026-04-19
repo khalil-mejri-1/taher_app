@@ -36,14 +36,18 @@ function App() {
 
   const [lastPartialAmounts, setLastPartialAmounts] = useState({});
 
-  const [finishedSessions, setFinishedSessions] = useState(() => {
-    const saved = localStorage.getItem('finishedSessions');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [finishedSessions, setFinishedSessions] = useState([]);
 
-  useEffect(() => {
-    localStorage.setItem('finishedSessions', JSON.stringify(finishedSessions));
-  }, [finishedSessions]);
+  const saveFinishedSessions = async (sessions) => {
+    try {
+      await axios.post(`${BASE_URL}/api/system/config`, {
+        key: 'finishedSessions',
+        value: sessions
+      });
+    } catch (err) {
+      console.error('Error saving finished sessions:', err);
+    }
+  };
 
   const customAlert = (title, message) => {
     setNotification({
@@ -93,7 +97,43 @@ function App() {
   useEffect(() => {
     fetchStudents();
     fetchWeeks();
+    fetchCurrentWeekDate();
+    fetchFinishedSessions();
   }, []);
+
+  const fetchFinishedSessions = async () => {
+    try {
+      const { data } = await axios.get(`${BASE_URL}/api/system/config/finishedSessions`);
+      if (data) {
+        setFinishedSessions(data);
+      }
+    } catch (err) {
+      console.error('Error fetching finished sessions:', err);
+    }
+  };
+
+  const fetchCurrentWeekDate = async () => {
+    try {
+      const { data } = await axios.get(`${BASE_URL}/api/system/config/currentWeekDate`);
+      if (data) {
+        setCurrentWeekDate(new Date(data));
+      }
+    } catch (err) {
+      console.error('Error fetching current week date:', err);
+    }
+  };
+
+  const handleDateChange = async (newDate) => {
+    setCurrentWeekDate(newDate);
+    try {
+      await axios.post(`${BASE_URL}/api/system/config`, {
+        key: 'currentWeekDate',
+        value: newDate.toISOString()
+      });
+    } catch (err) {
+      console.error('Error saving current week date:', err);
+    }
+  };
 
   const fetchWeeks = async () => {
     try {
@@ -230,7 +270,7 @@ function App() {
       // Increment date by 7 days
       const nextWeek = new Date(currentWeekDate);
       nextWeek.setDate(nextWeek.getDate() + 7);
-      setCurrentWeekDate(nextWeek);
+      await handleDateChange(nextWeek);
 
       await fetchStudents();
       await fetchWeeks();
@@ -265,7 +305,8 @@ function App() {
       cycleChange = 1;
     }
 
-    const newCompleted = Math.max(0, Math.min(8, (student.cycle?.completed || 0) + cycleChange));
+    const maxS = isSundayOnly(student.planning) ? 5 : 8;
+    const newCompleted = Math.max(0, Math.min(maxS, (student.cycle?.completed || 0) + cycleChange));
 
     try {
       await axios.put(`${API_URL}/${studentId}`, {
@@ -278,6 +319,17 @@ function App() {
     }
   };
 
+  const handleBatchAttendance = async (updates) => {
+    try {
+      await axios.post(`${API_URL}/batch-attendance`, { updates });
+      fetchStudents();
+      return true;
+    } catch (err) {
+      console.error('Error batch updating attendance:', err);
+      return false;
+    }
+  };
+
   const handleUpdatePayment = async (studentId, newStatus) => {
     const student = students.find(s => s._id === studentId);
     if (!student) return;
@@ -286,7 +338,7 @@ function App() {
     let updates = { paymentStatus: newStatus };
     let finalPaidCount = student.paidSessionsCount || 0;
     let finalMoneyPaid = student.totalMoneyPaid || 0;
-    
+
     const history = student.cycleHistory || [];
     const overrides = student.historyOverrides || {};
     let lastIndex = -1;
@@ -298,7 +350,7 @@ function App() {
     }
     const actualTotalCount = lastIndex !== -1 ? lastIndex + 1 : 0;
     let effectiveTotalSessionsCount = Math.max(Number(student.totalSessionsCount || 0), actualTotalCount);
-    
+
     const owesSessionsCount = Math.max(0, effectiveTotalSessionsCount - finalPaidCount);
     const visuallyNonPayer = owesSessionsCount > 0 && student.paymentStatus === "Payer / تم الخلاص";
 
@@ -659,12 +711,22 @@ function App() {
               onDelete={handleDeleteStudent}
               onEdit={handleEditStudent}
               onMarkAttendance={handleMarkAttendance}
+              onBatchAttendance={handleBatchAttendance}
               onFinishSession={handleFinishSession}
               onNewWeek={handleNewWeek}
               finishedSessions={finishedSessions}
-              setFinishedSessions={setFinishedSessions}
+              setFinishedSessions={async (val) => {
+                let updated;
+                if (typeof val === 'function') {
+                  updated = val(finishedSessions);
+                } else {
+                  updated = val;
+                }
+                setFinishedSessions(updated);
+                await saveFinishedSessions(updated);
+              }}
               currentWeekDate={currentWeekDate}
-              onDateChange={setCurrentWeekDate}
+              onDateChange={handleDateChange}
               weeksHistory={weeks}
               onSelectHistoryWeek={handleSelectWeek}
               selectedWeekData={selectedWeekData}

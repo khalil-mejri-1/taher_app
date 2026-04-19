@@ -5,28 +5,15 @@ import './FinancePage.css';
 const FinancePage = ({ students }) => {
   // Statistics Calculations
   const totalStudents = students.length;
-  
-  const recettesReelles = students.reduce((sum, s) => sum + (s.totalMoneyPaid || 0), 0);
-  
-  const isSundayOnly = (p) => {
-    if (!p) return false;
-    return p.dimanche?.unique && 
-           !p.mardi?.matin && 
-           !p.mercredi?.matin && !p.mercredi?.amidi &&
-           !p.samedi?.matin && !p.samedi?.amidi;
-  };
 
-  const montantGlobalPrevu = students.reduce((sum, s) => {
-    // Calculate cycles started: based on 5 for Sunday-only, 8 otherwise
-    const maxS = isSundayOnly(s.planning) ? 5 : 8;
-    const cycles = Math.max(1, Math.ceil((s.totalSessionsCount || 0) / maxS));
-    return sum + (cycles * (s.tarif || 80));
-  }, 0);
-  
+  const recettesReelles = students.reduce((sum, s) => sum + (s.totalMoneyPaid || 0), 0);
+
+  const montantGlobalPrevu = students.reduce((sum, s) => sum + (s.tarif || 0), 0);
+
   const resteARecouvrer = Math.max(0, montantGlobalPrevu - recettesReelles);
 
   const months = [
-    "Janvier", "Février", "Mars", "Avril", "Mai", "Juin", 
+    "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
     "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"
   ];
 
@@ -37,7 +24,7 @@ const FinancePage = ({ students }) => {
   const getMonthlyTotal = (monthIndex) => {
     // Placeholder logic or filtering by inscription month if needed
     // In this version, we'll keep it simple to match the "0 DT" style if no monthly data exists
-    return 0; 
+    return 0;
   };
 
   return (

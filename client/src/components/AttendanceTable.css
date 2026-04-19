@@ -118,6 +118,26 @@
   font-size: 0.85rem;
 }
 
+.btn-save-batch {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-save-batch:hover:not(:disabled) {
+  background-color: #059669 !important;
+  transform: translateY(-2px);
+  box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.2) !important;
+}
+
+.btn-save-batch:active {
+  transform: translateY(0);
+}
+
+.btn-save-batch.working {
+  background-color: #059669 !important;
+  cursor: wait;
+  opacity: 0.8;
+}
+
 .table-wrapper {
   overflow-x: auto;
 }

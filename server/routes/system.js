@@ -2,6 +2,32 @@ const express = require("express");
 const router = express.Router();
 const Student = require("../models/Student");
 const Week = require("../models/Week");
+const Config = require("../models/Config");
+
+// Get a config value
+router.get("/config/:key", async (req, res) => {
+  try {
+    const config = await Config.findOne({ key: req.params.key });
+    res.json(config ? config.value : null);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Set a config value
+router.post("/config", async (req, res) => {
+  const { key, value } = req.body;
+  try {
+    const config = await Config.findOneAndUpdate(
+      { key },
+      { value },
+      { upsert: true, new: true }
+    );
+    res.json(config);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
 
 // Reset Progress (Keep Students)
 router.post("/reset-sessions", async (req, res) => {

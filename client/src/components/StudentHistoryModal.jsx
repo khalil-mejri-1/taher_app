@@ -5,8 +5,16 @@ import './StudentHistoryModal.css';
 const StudentHistoryModal = ({ student, isOpen, onClose, onToggleCompensated, onToggleMonthlyPayment, onDeleteSession }) => {
   if (!isOpen) return null;
 
+  const isSundayOnly = (p) => {
+    if (!p) return false;
+    return p.dimanche?.unique &&
+      !p.mardi?.matin &&
+      !p.mercredi?.matin && !p.mercredi?.amidi &&
+      !p.samedi?.matin && !p.samedi?.amidi;
+  };
+
   // Number of expected sessions per cycle
-  const maxS = student.planning?.dimanche?.unique ? 5 : 8;
+  const maxS = isSundayOnly(student.planning) ? 5 : 8;
 
   const months = [];
   let numMonths = 24; // Standardized to 2 years of history
