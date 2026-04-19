@@ -45,6 +45,7 @@ const AttendanceTable = ({
   const [sessionModal, setSessionModal] = useState(null); // { key, label, day }
   const [pendingChanges, setPendingChanges] = useState({}); // { studentId: { sessionKey: boolean } }
   const [isSavingBatch, setIsSavingBatch] = useState(false);
+  const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0 });
 
   const [sessionFilter, setSessionFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -234,15 +235,25 @@ const AttendanceTable = ({
     }
 
     if (updates.length > 0) {
-      const success = await onBatchAttendance(updates);
-      if (success) {
-        setPendingChanges({});
-        if (customAlert) customAlert("Succès", "الحضور سجل بنجاح دفعة واحدة");
+      setBatchProgress({ current: 0, total: updates.length });
+      
+      for (let i = 0; i < updates.length; i++) {
+        setBatchProgress({ current: i + 1, total: updates.length });
+        
+        // Send updates for this specific student using the batch endpoint
+        await onBatchAttendance([updates[i]]);
+        
+        // Minor delay to make the count visible to the user
+        await new Promise(r => setTimeout(r, 60));
       }
+
+      setPendingChanges({});
+      if (customAlert) customAlert("Succès", "تم ارسال الحضور لجميع التلاميذ بنجاح");
     } else {
       setPendingChanges({}); // No real updates found
     }
     setIsSavingBatch(false);
+    setBatchProgress({ current: 0, total: 0 });
   };
 
   const printAttendanceSheet = (sessionKey, label, day, sessionStudents) => {
@@ -476,8 +487,17 @@ const AttendanceTable = ({
                     animation: 'pulse 2s infinite'
                   }}
                 >
-                  {isSavingBatch ? <Loader2 size={18} className="spin" /> : <CheckCircle size={18} />}
-                  ارسال الحضور ({Object.keys(pendingChanges).length})
+                  {isSavingBatch ? (
+                    <>
+                      <Loader2 size={18} className="spin" />
+                    تم ارسال {batchProgress.current} من {batchProgress.total}...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle size={18} />
+                      ارسال الحضور ({Object.keys(pendingChanges).length})
+                    </>
+                  )}
                 </button>
               )}
 
