@@ -9,8 +9,8 @@ import FinancePage from './components/FinancePage';
 import NotificationModal from './components/NotificationModal';
 import './index.css';
 
-const BASE_URL = 'https://taher-app.vercel.app';
-// const BASE_URL = 'http://localhost:5000';
+// const BASE_URL = 'https://taher-app.vercel.app';
+const BASE_URL = 'http://localhost:5000';
 const API_URL = `${BASE_URL}/api/students`;
 
 function App() {
@@ -149,7 +149,7 @@ function App() {
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(week, null, 2));
     const downloadAnchorNode = document.createElement('a');
     downloadAnchorNode.setAttribute("href", dataStr);
-    downloadAnchorNode.setAttribute("download", `week_${new Date(week.startDate).toISOString().split('T')[0]}.json`);
+    downloadAnchorNode.setAttribute("download", `rapport_${week.startDate}.json`);
     document.body.appendChild(downloadAnchorNode);
     downloadAnchorNode.click();
     downloadAnchorNode.remove();
@@ -159,12 +159,12 @@ function App() {
     const baseDate = new Date(week.startDate);
 
     const sessions = [
-      { key: 'mardi_matin', day: 'MARDI', label: 'MATIN', offset: 0 },
-      { key: 'mercredi_matin', day: 'MERCREDI', label: 'MATIN', offset: 1 },
-      { key: 'mercredi_apres_midi', day: 'MERCREDI', label: 'A.MIDI', offset: 1 },
-      { key: 'samedi_matin', day: 'SAMEDI', label: 'MATIN', offset: 4 },
-      { key: 'samedi_apres_midi', day: 'SAMEDI', label: 'A.MIDI', offset: 4 },
-      { key: 'dimanche_unique', day: 'DIMANCHE', label: 'UNIQUE', offset: 5 },
+      { key: 'mardi_matin', day: 'MARDI', label: 'MATIN', offset: 0, dayKey: 'mardi', type: 'matin' },
+      { key: 'mercredi_matin', day: 'MERCREDI', label: 'MATIN', offset: 1, dayKey: 'mercredi', type: 'matin' },
+      { key: 'mercredi_amidi', day: 'MERCREDI', label: 'A.MIDI', offset: 1, dayKey: 'mercredi', type: 'amidi' },
+      { key: 'samedi_matin', day: 'SAMEDI', label: 'MATIN', offset: 4, dayKey: 'samedi', type: 'matin' },
+      { key: 'samedi_amidi', day: 'SAMEDI', label: 'A.MIDI', offset: 4, dayKey: 'samedi', type: 'amidi' },
+      { key: 'dimanche_unique', day: 'DIMANCHE', label: 'UNIQUE', offset: 5, dayKey: 'dimanche', type: 'unique' },
     ];
 
     const getDateAtOffset = (offset) => {
@@ -173,31 +173,51 @@ function App() {
       return d;
     };
 
-    const formatDateShort = (d) => `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}`;
+    const formatDateShort = (d) => {
+      return d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
+    };
 
-    let html = `
+    // Calculate report data using both snapshot and live history
+    const reportRecords = students.filter(s => !s.isArchived).map(student => {
+      const snapshotRecord = week.records.find(r => (r.studentId?._id || r.studentId || "").toString() === student._id.toString());
+      
+      const attendance = sessions.map(s => {
+        // Check if student is even programmed for this session
+        const isProgrammed = student.planning?.[s.dayKey]?.[s.type];
+        if (!isProgrammed) return { session: s.key, status: 'empty' };
+
+        const sessionDate = getDateAtOffset(s.offset);
+        
+        // Check snapshot first
+        const inSnapshot = snapshotRecord?.attendance?.find(a => a.session === s.key && a.present);
+        if (inSnapshot) return { session: s.key, status: 'present' };
+        
+        // Then check live history
+        const inHistory = student.cycleHistory?.some(h => 
+          isSameDay(h.date, sessionDate) && 
+          (h.type === 'attended' || h.type === 'compensated' || h.type === 'present' || h.type === 'payer')
+        );
+        
+        return { session: s.key, status: inHistory ? 'present' : 'absent' };
+      });
+      
+      return { studentName: student.name, attendance };
+    });
+
+    const html = `
       <html>
         <head>
-          <title>Rapport Hebdomadaire - ${formatDateShort(baseDate)}</title>
+          <title>Rapport de Présence - ${baseDate.toLocaleDateString()}</title>
           <style>
-            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
-            body { 
-              font-family: 'Inter', sans-serif; 
-              padding: 40px; 
-              color: #1e293b; 
-              background: #fff;
-            }
-            .header-info { text-align: center; margin-bottom: 40px; }
-            h1 { font-weight: 800; font-size: 28px; margin-bottom: 10px; color: #0f172a; text-transform: uppercase; }
-            .week-date { color: #64748b; font-weight: 600; font-size: 16px; }
+            body { font-family: 'Inter', system-ui, sans-serif; padding: 40px; color: #1e293b; }
+            .header-info { text-align: center; margin-bottom: 30px; }
+            h1 { color: #0f172a; margin: 0; font-size: 24px; }
+            .week-date { color: #64748b; font-size: 14px; margin-top: 5px; }
             
-            table { width: 100%; border-collapse: separate; border-spacing: 0; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; border-radius: 8px; overflow: hidden; }
             th { 
-              padding: 12px 8px; 
-              border: 1px solid #e2e8f0; 
-              font-size: 10px; 
-              font-weight: 800; 
-              text-transform: uppercase; 
+              padding: 12px 10px; border: 1px solid #e2e8f0; font-size: 11px; 
+              font-weight: 800; color: #475569; text-transform: uppercase; 
               background: #f8fafc;
             }
             td { padding: 12px 10px; border: 1px solid #e2e8f0; text-align: center; font-size: 12px; }
@@ -211,7 +231,7 @@ function App() {
             
             .present { color: #10b981; font-weight: 900; font-size: 16px; }
             .absent { color: #ef4444; font-weight: 900; font-size: 16px; }
-            .empty-cell { background-color: #f1f5f9; }
+            .empty-cell { background-color: #f8fafc; color: transparent; }
             
             @media print {
               body { padding: 0; }
@@ -220,7 +240,7 @@ function App() {
               .mercredi { background-color: #f0fdf4 !important; -webkit-print-color-adjust: exact; }
               .samedi { background-color: #eff6ff !important; -webkit-print-color-adjust: exact; }
               .dimanche { background-color: #faf5ff !important; -webkit-print-color-adjust: exact; }
-              .empty-cell { background-color: #f1f5f9 !important; -webkit-print-color-adjust: exact; }
+              .empty-cell { background-color: #f8fafc !important; -webkit-print-color-adjust: exact; }
             }
           </style>
         </head>
@@ -234,27 +254,27 @@ function App() {
               <tr>
                 <th rowspan="2">Informations Étudiant</th>
                 ${sessions.map(s => {
-      const d = getDateAtOffset(s.offset);
-      return `<th class="${s.day.toLowerCase()}">${formatDateShort(d)}<br/>${s.day}</th>`;
-    }).join('')}
+                  const d = getDateAtOffset(s.offset);
+                  return `<th class="${s.day.toLowerCase()}">${formatDateShort(d)}<br/>${s.day}</th>`;
+                }).join('')}
               </tr>
               <tr>
                 ${sessions.map(s => `<th class="${s.day.toLowerCase()}">${s.label}</th>`).join('')}
               </tr>
             </thead>
             <tbody>
-              ${week.records.map(record => `
+              ${reportRecords.map(record => `
                 <tr>
                   <td class="student-info">${record.studentName}</td>
                   ${sessions.map(s => {
-      const att = record.attendance.find(a => a.session === s.key);
-      if (!att) return `<td class="empty-cell"></td>`;
-      return `
+                    const att = record.attendance.find(a => a.session === s.key);
+                    if (att.status === 'empty') return `<td class="empty-cell">—</td>`;
+                    return `
                       <td class="${s.day.toLowerCase()}">
-                        ${att.present ? '<span class="present">✓</span>' : '<span class="absent">✕</span>'}
+                        ${att.status === 'present' ? '<span class="present">✓</span>' : '<span class="absent">✕</span>'}
                       </td>
                     `;
-    }).join('')}
+                  }).join('')}
                 </tr>
               `).join('')}
             </tbody>
@@ -349,52 +369,86 @@ function App() {
     }
   };
 
+  const isSameDay = (d1, d2) => {
+    if (!d1 || !d2) return false;
+    const date1 = new Date(d1);
+    const date2 = new Date(d2);
+    return date1.getFullYear() === date2.getFullYear() &&
+      date1.getMonth() === date2.getMonth() &&
+      date1.getDate() === date2.getDate();
+  };
+
+  const getSessionDate = (sessionKey) => {
+    const baseDate = new Date(currentWeekDate);
+    const getWeekDay = (base, daysToAdd) => {
+      const d = new Date(base);
+      d.setDate(d.getDate() + daysToAdd);
+      return d;
+    };
+    if (sessionKey.startsWith('mardi')) return baseDate;
+    if (sessionKey.startsWith('mercredi')) return getWeekDay(baseDate, 1);
+    if (sessionKey.startsWith('samedi')) return getWeekDay(baseDate, 4);
+    if (sessionKey.startsWith('dimanche')) return getWeekDay(baseDate, 5);
+    return baseDate;
+  };
+
   const handleFinishSession = async (sessionKey, isUndo = false) => {
     const day = sessionKey.split('_')[0];
     const sessionType = sessionKey.split('_')[1];
+    const sessionDate = getSessionDate(sessionKey);
 
-    const updates = students.map(async (student) => {
-      // Check if student is assigned to this session
-      if (student.planning?.[day]?.[sessionType]) {
-        if (isUndo) {
-          // Revert logic
-          let newHistory = [...(student.cycleHistory || [])];
-          // Find the last history item matching this session
-          const lastIndex = newHistory.map(h => h.session).lastIndexOf(sessionKey);
-          if (lastIndex > -1) {
-            newHistory.splice(lastIndex, 1);
+    const affectedStudents = students.filter(s => s.planning?.[day]?.[sessionType]);
+
+    // We'll update students one by one or in a loop. 
+    // Given the batch infrastructure we have, we'll map them to update promises.
+    const updatePromises = affectedStudents.map(async (student) => {
+      let newHistory = [...(student.cycleHistory || [])];
+      let newTotalCount = student.totalSessionsCount || 0;
+      let newCompleted = student.cycle?.completed || 0;
+
+      if (isUndo) {
+        // Find history entry with matching sessionKey AND matching sessionDate
+        const idx = newHistory.findIndex(h =>
+          h.session === sessionKey && isSameDay(h.date, sessionDate)
+        );
+
+        if (idx !== -1) {
+          const removed = newHistory[idx];
+          newHistory.splice(idx, 1);
+          newTotalCount = Math.max(0, newTotalCount - 1);
+
+          // Revert completion count if they were present
+          if (removed.type === 'present' || removed.type === 'attended' || removed.type === 'compensated' || removed.type === 'payer') {
+            newCompleted = Math.max(0, newCompleted - 1);
           }
-
-          await axios.put(`${API_URL}/${student._id}`, {
-            cycleHistory: newHistory,
-            totalSessionsCount: Math.max(0, (student.totalSessionsCount || 1) - 1)
-          });
-        } else {
-          // Finish logic
-          const isPresent = student.attendance?.some(a => a.session === sessionKey && a.present);
-
-          const newHistoryEntry = {
-            session: sessionKey,
-            date: new Date(),
-            type: isPresent ? 'present' : 'absent'
-          };
-
-          const newHistory = [...(student.cycleHistory || []), newHistoryEntry];
-
-          await axios.put(`${API_URL}/${student._id}`, {
-            cycleHistory: newHistory,
-            totalSessionsCount: (student.totalSessionsCount || 0) + 1
-          });
         }
+      } else {
+        // Normal Finish
+        const isPresent = student.attendance?.some(a => a.session === sessionKey && a.present && isSameDay(a.date, sessionDate));
+
+        newHistory.push({
+          session: sessionKey,
+          date: sessionDate,
+          type: isPresent ? 'present' : 'absent'
+        });
+        newTotalCount = newTotalCount + 1;
+        // Completed count is handled by the checkbox click in the UI for the current week, 
+        // so we don't increment it again here to avoid double-counting.
       }
+
+      return axios.put(`${API_URL}/${student._id}`, {
+        cycleHistory: newHistory,
+        totalSessionsCount: newTotalCount,
+        cycle: { ...student.cycle, completed: newCompleted }
+      });
     });
 
     try {
-      await Promise.all(updates);
+      await Promise.all(updatePromises);
       fetchStudents();
-      return true; // Indicate success to child
+      return true;
     } catch (err) {
-      console.error('Error finishing session:', err);
+      console.error('Error in handleFinishSession:', err);
       return false;
     }
   };
@@ -428,8 +482,9 @@ function App() {
     const student = students.find(s => s._id === studentId);
     if (!student) return;
 
+    const sessionDate = getSessionDate(sessionKey);
     const existingAttendance = student.attendance || [];
-    const index = existingAttendance.findIndex(a => a.session === sessionKey);
+    const index = existingAttendance.findIndex(a => a.session === sessionKey && isSameDay(a.date, sessionDate));
 
     let newAttendance = [...existingAttendance];
     let cycleChange = 0;
@@ -440,7 +495,7 @@ function App() {
       cycleChange = -1;
     } else {
       // Toggle on
-      newAttendance.push({ date: new Date(), session: sessionKey, present: true });
+      newAttendance.push({ date: sessionDate, session: sessionKey, present: true });
       cycleChange = 1;
     }
 

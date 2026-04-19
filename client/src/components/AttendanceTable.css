@@ -222,8 +222,7 @@ th {
 .btn-term.finished {
   background: #94a3b8;
   opacity: 0.8;
-  cursor: not-allowed;
-  pointer-events: none;
+  cursor: pointer;
 }
 
 .btn-term.working {

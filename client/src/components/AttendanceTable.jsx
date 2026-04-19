@@ -10,6 +10,7 @@ const AttendanceTable = ({
   onArchive,
   onUnarchive,
   onMarkAttendance,
+  onBatchAttendance,
   onFinishSession,
   onNewWeek,
   currentWeekDate,
@@ -128,6 +129,15 @@ const AttendanceTable = ({
   const handleNextPage = () => setCurrentPage((prev) => Math.min(prev + 1, totalPages));
   const handlePrevPage = () => setCurrentPage((prev) => Math.max(prev - 1, 1));
   const handlePageClick = (pageNum) => setCurrentPage(pageNum);
+  
+  const isSameDay = (d1, d2) => {
+    if (!d1 || !d2) return false;
+    const date1 = new Date(d1);
+    const date2 = new Date(d2);
+    return date1.getFullYear() === date2.getFullYear() &&
+           date1.getMonth() === date2.getMonth() &&
+           date1.getDate() === date2.getDate();
+  };
 
   // Map session keys to planning paths
   const SESSION_PLANNING_MAP = {
@@ -160,18 +170,32 @@ const AttendanceTable = ({
       
       // Determine if currently present considering pending changes
       const currentPresentInPending = studentChanges[sessionKey];
+      
+      let basePresent = student.attendance?.some(a => a.session === sessionKey && a.present) || false;
+      
+      // If not in current attendance, check history
+      if (!basePresent) {
+        const sessionDate = getSessionDate(sessionKey);
+        if (sessionDate) {
+          basePresent = student.cycleHistory?.some(h => 
+            isSameDay(h.date, sessionDate) &&
+            (h.type === 'attended' || h.type === 'compensated' || h.type === 'present' || h.type === 'payer')
+          ) || false;
+        }
+      }
+
       const currentlyPresent = currentPresentInPending !== undefined 
         ? currentPresentInPending 
-        : (student.attendance?.some(a => a.session === sessionKey && a.present) || false);
+        : basePresent;
         
       const nextPresent = !currentlyPresent;
       
-      // Check if nextPresent matches the original state in the database
-      const originalPresent = student.attendance?.some(a => a.session === sessionKey && a.present) || false;
+      // Check if nextPresent matches the original state (attendance OR history)
+      const originalState = basePresent;
       
       const newStudentChanges = { ...studentChanges };
       
-      if (nextPresent === originalPresent) {
+      if (nextPresent === originalState) {
         // If we toggled back to the original state, remove this session from pending
         delete newStudentChanges[sessionKey];
       } else {
@@ -207,17 +231,20 @@ const AttendanceTable = ({
       const studentSessionChanges = pendingChanges[studentId];
       for (const sessionKey of Object.keys(studentSessionChanges)) {
         const nextPresent = studentSessionChanges[sessionKey];
-        const originalPresent = student.attendance?.some(a => a.session === sessionKey && a.present);
+        const sessionDate = getSessionDate(sessionKey);
+        const originalPresent = student.attendance?.some(a => 
+          a.session === sessionKey && a.present && isSameDay(a.date, sessionDate)
+        );
 
         if (nextPresent === originalPresent) continue; // No change for this session
 
         if (nextPresent) {
           // Add if not present
-          newAttendance.push({ date: new Date(), session: sessionKey, present: true });
+          newAttendance.push({ date: sessionDate, session: sessionKey, present: true });
           cycleChange += 1;
         } else {
           // Remove if present
-          newAttendance = newAttendance.filter(a => a.session !== sessionKey);
+          newAttendance = newAttendance.filter(a => !(a.session === sessionKey && isSameDay(a.date, sessionDate)));
           cycleChange -= 1;
         }
       }
@@ -365,17 +392,70 @@ const AttendanceTable = ({
   const dimancheDate = getWeekDay(baseWeekDate, 5);
 
   const isPresent = (student, sessionKey) => {
+    let inSnapshotAttendance = false;
+    
+    // 1. Check if we're in history view and check snapshot record
     if (selectedWeekData) {
-      const record = selectedWeekData.records.find(r => r.studentId === student._id);
-      return record?.attendance?.some(a => a.session === sessionKey && a.present);
+      const record = selectedWeekData.records.find(r => 
+        (r.studentId?._id || r.studentId || "").toString() === (student?._id || "").toString()
+      );
+      inSnapshotAttendance = record?.attendance?.some(a => a.session === sessionKey && a.present) || false;
     }
 
-    // Check pending changes first
-    if (pendingChanges[student._id] && pendingChanges[student._id][sessionKey] !== undefined) {
-      return pendingChanges[student._id][sessionKey];
+    // 2. Check pending changes (only for live view)
+    if (!selectedWeekData) {
+      const studentChanges = pendingChanges[student._id] || {};
+      if (studentChanges[sessionKey] !== undefined) {
+        return studentChanges[sessionKey];
+      }
     }
 
-    return student.attendance?.some(a => a.session === sessionKey && a.present);
+    // 3. Check current week attendance (must match session date)
+    const sessionDate = getSessionDate(sessionKey);
+    const inCurrentAttendance = student.attendance?.some(a => 
+      a.session === sessionKey && a.present && isSameDay(a.date, sessionDate)
+    );
+    
+    if (inSnapshotAttendance || inCurrentAttendance) return true;
+
+    // 4. Check historical records (cycleHistory)
+    if (sessionDate) {
+      const inHistory = student.cycleHistory?.some(h => 
+        isSameDay(h.date, sessionDate) &&
+        (h.type === 'attended' || h.type === 'compensated' || h.type === 'present' || h.type === 'payer')
+      );
+      if (inHistory) return true;
+    }
+
+    return false;
+  };
+
+  const isSessionFinished = (sessionKey) => {
+    // If in history view, check specifically the saved list
+    if (selectedWeekData) {
+      if (selectedWeekData.finishedSessions?.includes(sessionKey)) return true;
+    }
+
+    // Also check auto-detection from history/attendance 
+    // This makes history view "alive" with the actual recorded data
+    const sessionDate = getSessionDate(sessionKey);
+    if (!sessionDate) return false;
+    
+    const sessionStudents = getStudentsForSession(sessionKey);
+    if (sessionStudents.length === 0) return false;
+
+    const recordedCount = sessionStudents.filter(s => 
+      s.cycleHistory?.some(h => isSameDay(h.date, sessionDate))
+    ).length;
+
+    // And check current week attendance
+    const currentAttendanceCount = sessionStudents.filter(s => 
+       s.attendance?.some(a => a.session === sessionKey && a.present && isSameDay(a.date, sessionDate))
+    ).length;
+
+    const totalRecorded = recordedCount + currentAttendanceCount;
+
+    return (totalRecorded > 0 && totalRecorded >= sessionStudents.length / 2) || (finishedSessions.includes(sessionKey) && !selectedWeekData);
   };
 
   const handleFinish = async (sessionKey) => {
@@ -420,32 +500,6 @@ const AttendanceTable = ({
     }
   };
 
-  const isSessionFinished = (sessionKey) => {
-    if (selectedWeekData) {
-      return selectedWeekData.finishedSessions?.includes(sessionKey);
-    }
-    
-    // Explicitly marked as finished in the current week
-    if (finishedSessions.includes(sessionKey)) return true;
-
-    // Auto-detect based on history records for the current date
-    const sessionDate = getSessionDate(sessionKey);
-    if (!sessionDate) return false;
-    
-    const dateStr = sessionDate.toLocaleDateString('fr-FR');
-    
-    // Only auto-detect if we have students for this session
-    const sessionStudents = getStudentsForSession(sessionKey);
-    if (sessionStudents.length === 0) return false;
-
-    // If at least half of the students have a history entry for this date/session, mark as finished
-    // (We use a threshold to avoid a single manual history add from greying out the whole session button)
-    const recordedCount = sessionStudents.filter(s => 
-      s.cycleHistory?.some(h => new Date(h.date).toLocaleDateString('fr-FR') === dateStr)
-    ).length;
-
-    return recordedCount > 0 && recordedCount >= sessionStudents.length / 2;
-  };
 
   return (
     <div className="attendance-container">
