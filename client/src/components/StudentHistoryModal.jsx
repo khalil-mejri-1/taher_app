@@ -13,6 +13,18 @@ const StudentHistoryModal = ({ student, isOpen, onClose, onToggleCompensated, on
       !p.samedi?.matin && !p.samedi?.amidi;
   };
 
+  const formatSessionName = (key) => {
+    if (!key) return '';
+    const parts = key.split('_');
+    if (parts.length < 2) return key.toUpperCase();
+    
+    const day = parts[0].toUpperCase();
+    let type = parts[1].toUpperCase();
+    if (type === 'AMIDI') type = 'A.MIDI';
+    
+    return `${day} - ${type}`;
+  };
+
   // Number of expected sessions per cycle
   const maxS = isSundayOnly(student.planning) ? 5 : 8;
 
@@ -136,9 +148,14 @@ const StudentHistoryModal = ({ student, isOpen, onClose, onToggleCompensated, on
                                     <Trash2 size={10} />
                                   </button>
                                 </div>
-                                <span className="session-date">
-                                  {session?.customDateStr || (session?.date ? new Date(session.date).toLocaleDateString('fr-FR') : '--')}
-                                </span>
+                                <div className="session-detail-container">
+                                  <span className="session-date">
+                                    {session?.customDateStr || (session?.date ? new Date(session.date).toLocaleDateString('fr-FR') : '--')}
+                                  </span>
+                                  <span className="session-name">
+                                    {formatSessionName(session?.session)}
+                                  </span>
+                                </div>
                               </div>
                             ) : (
                               <div 

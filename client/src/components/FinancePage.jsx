@@ -4,11 +4,12 @@ import './FinancePage.css';
 
 const FinancePage = ({ students }) => {
   // Statistics Calculations
-  const totalStudents = students.length;
+  const activeStudents = students.filter(s => !s.isArchived);
+  const totalStudents = activeStudents.length;
 
-  const recettesReelles = students.reduce((sum, s) => sum + (s.totalMoneyPaid || 0), 0);
+  const recettesReelles = activeStudents.reduce((sum, s) => sum + (s.totalMoneyPaid || 0), 0);
 
-  const montantGlobalPrevu = students.reduce((sum, s) => sum + (s.tarif || 0), 0);
+  const montantGlobalPrevu = activeStudents.reduce((sum, s) => sum + (s.tarif || 0), 0);
 
   const resteARecouvrer = Math.max(0, montantGlobalPrevu - recettesReelles);
 

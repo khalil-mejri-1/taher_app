@@ -58,7 +58,7 @@ const AttendanceTable = ({
 
   const getWeekDay = (baseDate, daysToAdd) => {
     const newDate = new Date(baseDate);
-    newDate.setDate(newDate.getDate() + daysToAdd);
+    newDate.setUTCDate(newDate.getUTCDate() + daysToAdd);
     return newDate;
   };
 
@@ -415,6 +415,7 @@ const AttendanceTable = ({
     // 2. Persistent History check (Dated) - Valid for ALL views
     // This handles recorded/finished sessions which are the ultimate truth
     const inHistory = student.cycleHistory?.some(h => 
+      h.session === sessionKey && 
       isSameDay(h.date, sessionDate) &&
       (h.type === 'present' || h.type === 'attended' || h.type === 'compensated' || h.type === 'payer')
     );
@@ -439,31 +440,36 @@ const AttendanceTable = ({
   };
 
   const isSessionFinished = (sessionKey) => {
-    // If in history view, check specifically the saved list
+    // 1. Explicit state (Works for both Live and History)
     if (selectedWeekData) {
-      return selectedWeekData.finishedSessions?.includes(sessionKey) || false;
+      if (selectedWeekData.finishedSessions?.includes(sessionKey)) return true;
+    } else {
+      if (finishedSessions.includes(sessionKey)) return true;
     }
 
-    // Also check auto-detection from history/attendance 
-    // This makes history view "alive" with the actual recorded data
+    // 2. Auto-detection (Primarily for History records or deep data integrity)
+    // In Live mode, we DISABLE auto-detection for 'attendance' so 'Send Attendance' 
+    // doesn't force the button to Gray. The user wants an explicit click.
     const sessionDate = getSessionDate(sessionKey);
     if (!sessionDate) return false;
     
     const sessionStudents = getStudentsForSession(sessionKey);
     if (sessionStudents.length === 0) return false;
 
+    // Check persistent records (cycleHistory)
+    // If ANY student has an entry in cycleHistory for this session/date, 
+    // it means the session has been at least partially "Recorded" and should be Gray.
     const recordedCount = sessionStudents.filter(s => 
-      s.cycleHistory?.some(h => isSameDay(h.date, sessionDate))
+      s.cycleHistory?.some(h => h.session === sessionKey && isSameDay(h.date, sessionDate))
     ).length;
 
-    // And check current week attendance
-    const currentAttendanceCount = sessionStudents.filter(s => 
-       s.attendance?.some(a => a.session === sessionKey && a.present && isSameDay(a.date, sessionDate))
-    ).length;
+    // If we find ANY historical records for this day/session, it's Finished (Gray)
+    // This applies to both Live and History views.
+    if (recordedCount > 0) {
+      return true;
+    }
 
-    const totalRecorded = recordedCount + currentAttendanceCount;
-
-    return (totalRecorded > 0 && totalRecorded >= sessionStudents.length / 2) || finishedSessions.includes(sessionKey);
+    return false;
   };
 
   const handleFinish = async (sessionKey) => {
@@ -666,7 +672,7 @@ const AttendanceTable = ({
                     disabled={selectedWeekData || !!loadingSession}
                   >
                     {loadingSession === 'mardi_matin' ? <Loader2 size={14} className="spin" /> : <CheckCircle size={14} />}
-                    {isSessionFinished('mardi_matin') ? 'TERMINE' : 'TERMINER'}
+                    {isSessionFinished('mardi_matin') ? 'TERMINÉ' : 'TERMINER'}
                   </button>
                 </div>
               </th>
@@ -680,7 +686,7 @@ const AttendanceTable = ({
                     disabled={selectedWeekData || !!loadingSession}
                   >
                     {loadingSession === 'mercredi_matin' ? <Loader2 size={14} className="spin" /> : <CheckCircle size={14} />}
-                    {isSessionFinished('mercredi_matin') ? 'TERMINE' : 'TERMINER'}
+                    {isSessionFinished('mercredi_matin') ? 'TERMINÉ' : 'TERMINER'}
                   </button>
                 </div>
               </th>
@@ -694,7 +700,7 @@ const AttendanceTable = ({
                     disabled={selectedWeekData || !!loadingSession}
                   >
                     {loadingSession === 'mercredi_amidi' ? <Loader2 size={14} className="spin" /> : <CheckCircle size={14} />}
-                    {isSessionFinished('mercredi_amidi') ? 'TERMINE' : 'TERMINER'}
+                    {isSessionFinished('mercredi_amidi') ? 'TERMINÉ' : 'TERMINER'}
                   </button>
                 </div>
               </th>
@@ -708,7 +714,7 @@ const AttendanceTable = ({
                     disabled={selectedWeekData || !!loadingSession}
                   >
                     {loadingSession === 'samedi_matin' ? <Loader2 size={14} className="spin" /> : <CheckCircle size={14} />}
-                    {isSessionFinished('samedi_matin') ? 'TERMINE' : 'TERMINER'}
+                    {isSessionFinished('samedi_matin') ? 'TERMINÉ' : 'TERMINER'}
                   </button>
                 </div>
               </th>
@@ -722,7 +728,7 @@ const AttendanceTable = ({
                     disabled={selectedWeekData || !!loadingSession}
                   >
                     {loadingSession === 'samedi_amidi' ? <Loader2 size={14} className="spin" /> : <CheckCircle size={14} />}
-                    {isSessionFinished('samedi_amidi') ? 'TERMINE' : 'TERMINER'}
+                    {isSessionFinished('samedi_amidi') ? 'TERMINÉ' : 'TERMINER'}
                   </button>
                 </div>
               </th>
@@ -736,7 +742,7 @@ const AttendanceTable = ({
                     disabled={selectedWeekData || !!loadingSession}
                   >
                     {loadingSession === 'dimanche_unique' ? <Loader2 size={14} className="spin" /> : <CheckCircle size={14} />}
-                    {(isSessionFinished('dimanche_unique') || loadingSession === 'dimanche_unique') ? 'TERMINE' : 'TERMINER'}
+                    {(isSessionFinished('dimanche_unique') || loadingSession === 'dimanche_unique') ? 'TERMINÉ' : 'TERMINER'}
                   </button>
                 </div>
               </th>

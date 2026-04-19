@@ -380,10 +380,10 @@ function App() {
 
   const getSessionDate = (sessionKey) => {
     const baseDate = new Date(currentWeekDate);
-    const getWeekDay = (base, daysToAdd) => {
-      const d = new Date(base);
-      d.setDate(d.getDate() + daysToAdd);
-      return d;
+    const getWeekDay = (baseDate, daysToAdd) => {
+      const newDate = new Date(baseDate);
+      newDate.setUTCDate(newDate.getUTCDate() + daysToAdd);
+      return newDate;
     };
     if (sessionKey.startsWith('mardi')) return baseDate;
     if (sessionKey.startsWith('mercredi')) return getWeekDay(baseDate, 1);
@@ -407,20 +407,25 @@ function App() {
       let newCompleted = student.cycle?.completed || 0;
 
       if (isUndo) {
-        // Find history entry with matching sessionKey AND matching sessionDate
-        const idx = newHistory.findIndex(h =>
+        const initialCount = newHistory.length;
+        const entriesToRemove = newHistory.filter(h =>
           h.session === sessionKey && isSameDay(h.date, sessionDate)
         );
 
-        if (idx !== -1) {
-          const removed = newHistory[idx];
-          newHistory.splice(idx, 1);
-          newTotalCount = Math.max(0, newTotalCount - 1);
+        if (entriesToRemove.length > 0) {
+          newHistory = newHistory.filter(h =>
+            !(h.session === sessionKey && isSameDay(h.date, sessionDate))
+          );
 
-          // Revert completion count if they were present
-          if (removed.type === 'present' || removed.type === 'attended' || removed.type === 'compensated' || removed.type === 'payer') {
-            newCompleted = Math.max(0, newCompleted - 1);
-          }
+          const removedCount = initialCount - newHistory.length;
+          newTotalCount = Math.max(0, newTotalCount - removedCount);
+
+          // Revert completion count for each present record removed
+          entriesToRemove.forEach(removed => {
+            if (removed.type === 'present' || removed.type === 'attended' || removed.type === 'compensated' || removed.type === 'payer') {
+              newCompleted = Math.max(0, newCompleted - 1);
+            }
+          });
         }
       } else {
         // Normal Finish

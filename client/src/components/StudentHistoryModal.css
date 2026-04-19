@@ -297,6 +297,21 @@
   color: #000000;
 }
 
+.session-detail-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.session-name {
+  font-size: 0.55rem;
+  font-weight: 800;
+  color: #64748b;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
 .status-dot.present {
   background-color: #10b981;
   border-color: #059669;

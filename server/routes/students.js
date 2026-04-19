@@ -26,7 +26,7 @@ router.post("/", async (req, res) => {
 // Update a student
 router.put("/:id", async (req, res) => {
   try {
-    const updatedStudent = await Student.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const updatedStudent = await Student.findByIdAndUpdate(req.params.id, req.body, { returnDocument: 'after' });
     res.json(updatedStudent);
   } catch (err) {
     res.status(400).json({ message: err.message });
