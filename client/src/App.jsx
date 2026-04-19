@@ -681,7 +681,6 @@ function App() {
     const newTotal = (student.totalSessionsCount || 0) + totalAdjust;
 
     try {
-      // 1. Prepare history update
       const updateData = {
         historyOverrides: newOverrides,
         totalSessionsCount: newTotal,
@@ -694,10 +693,10 @@ function App() {
       if (toggledSession) {
         const sessionDate = new Date(toggledSession.date);
         const sessionKey = toggledSession.session;
-        
+
         // If it's a valid session key and next state is NOT present/attended
         const isNowPresent = (nextType === 'present' || nextType === 'attended' || nextType === 'compensated');
-        
+
         let newAttendance = [...(student.attendance || [])];
         const initialLen = newAttendance.length;
 
@@ -717,15 +716,15 @@ function App() {
         }
       }
 
-      await axios.put(`${API_URL}/${studentId}`, updateData);
-
+      // OPTIMISTIC UI UPDATE
       const updatedStudent = {
         ...student,
         ...updateData
       };
-
       setStudents(prev => prev.map(s => s._id === studentId ? updatedStudent : s));
       setSelectedStudentHistory(updatedStudent);
+
+      await axios.put(`${API_URL}/${studentId}`, updateData);
 
     } catch (err) {
       console.error('Error toggling compensated status:', err);
