@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { History, Edit2, Archive, Trash2, CheckCircle, RotateCcw, Loader2, X } from 'lucide-react';
+import { History, Edit2, Archive, Trash2, CheckCircle, RotateCcw, Loader2, X, Download, FileJson } from 'lucide-react';
 import './AttendanceTable.css';
 
 const AttendanceTable = ({
@@ -18,6 +18,8 @@ const AttendanceTable = ({
   onSelectHistoryWeek,
   selectedWeekData,
   onCloseHistoryDetail,
+  onDeleteWeek,
+  onDownloadWeek,
   onResetAll,
   onUpdatePayment,
   onUpdateNotes,
@@ -954,13 +956,36 @@ const AttendanceTable = ({
                 <p className="no-data">Aucune semaine enregistrée.</p>
               ) : (
                 weeksHistory.map((week) => (
-                  <div key={week._id} className="week-card" onClick={() => { onSelectHistoryWeek(week); setIsWeeksHistoryModalOpen(false); }}>
-                    <div className="card-icon"><History size={24} /></div>
-                    <div className="card-info">
-                      <h4>Semaine du {formatDate(new Date(week.startDate))}</h4>
-                      <span>{week.records.length} Étudiants</span>
+                  <div key={week._id} className="week-card">
+                    <div className="week-card-main" onClick={() => { onSelectHistoryWeek(week); setIsWeeksHistoryModalOpen(false); }}>
+                      <div className="card-icon"><History size={24} /></div>
+                      <div className="card-info">
+                        <h4>Semaine du {formatDate(new Date(week.startDate))}</h4>
+                        <span>{week.records.length} Étudiants</span>
+                      </div>
+                      <div className="card-arrow">→</div>
                     </div>
-                    <div className="card-arrow">→</div>
+                    <div className="week-card-actions">
+                      <button 
+                        className="btn-download" 
+                        onClick={(e) => { e.stopPropagation(); onDownloadWeek(week); }}
+                        title="Télécharger PDF & JSON"
+                      >
+                        <Download size={16} />
+                        <FileJson size={16} />
+                      </button>
+                      <button 
+                        className="btn-delete-week" 
+                        onClick={async (e) => { 
+                          e.stopPropagation(); 
+                          const confirmed = await customConfirm("Supprimer", "Voulez-vous vraiment supprimer cet historique ?");
+                          if (confirmed) onDeleteWeek(week._id);
+                        }}
+                        title="Supprimer"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
                   </div>
                 ))
               )}

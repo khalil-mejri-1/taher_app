@@ -135,6 +135,145 @@ function App() {
     }
   };
 
+  const handleDeleteWeek = async (weekId) => {
+    try {
+      await axios.delete(`${BASE_URL}/api/weeks/${weekId}`);
+      await fetchWeeks();
+    } catch (err) {
+      console.error('Error deleting week:', err);
+    }
+  };
+
+  const handleDownloadWeek = (week) => {
+    // 1. Download JSON for backup
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(week, null, 2));
+    const downloadAnchorNode = document.createElement('a');
+    downloadAnchorNode.setAttribute("href", dataStr);
+    downloadAnchorNode.setAttribute("download", `week_${new Date(week.startDate).toISOString().split('T')[0]}.json`);
+    document.body.appendChild(downloadAnchorNode);
+    downloadAnchorNode.click();
+    downloadAnchorNode.remove();
+
+    // 2. Open printable view (Same layout as the main table)
+    const printWindow = window.open('', '_blank');
+    const baseDate = new Date(week.startDate);
+
+    const sessions = [
+      { key: 'mardi_matin', day: 'MARDI', label: 'MATIN', offset: 0 },
+      { key: 'mercredi_matin', day: 'MERCREDI', label: 'MATIN', offset: 1 },
+      { key: 'mercredi_apres_midi', day: 'MERCREDI', label: 'A.MIDI', offset: 1 },
+      { key: 'samedi_matin', day: 'SAMEDI', label: 'MATIN', offset: 4 },
+      { key: 'samedi_apres_midi', day: 'SAMEDI', label: 'A.MIDI', offset: 4 },
+      { key: 'dimanche_unique', day: 'DIMANCHE', label: 'UNIQUE', offset: 5 },
+    ];
+
+    const getDateAtOffset = (offset) => {
+      const d = new Date(baseDate);
+      d.setDate(d.getDate() + offset);
+      return d;
+    };
+
+    const formatDateShort = (d) => `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}`;
+
+    let html = `
+      <html>
+        <head>
+          <title>Rapport Hebdomadaire - ${formatDateShort(baseDate)}</title>
+          <style>
+            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+            body { 
+              font-family: 'Inter', sans-serif; 
+              padding: 40px; 
+              color: #1e293b; 
+              background: #fff;
+            }
+            .header-info { text-align: center; margin-bottom: 40px; }
+            h1 { font-weight: 800; font-size: 28px; margin-bottom: 10px; color: #0f172a; text-transform: uppercase; }
+            .week-date { color: #64748b; font-weight: 600; font-size: 16px; }
+            
+            table { width: 100%; border-collapse: separate; border-spacing: 0; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; }
+            th { 
+              padding: 12px 8px; 
+              border: 1px solid #e2e8f0; 
+              font-size: 10px; 
+              font-weight: 800; 
+              text-transform: uppercase; 
+              background: #f8fafc;
+            }
+            td { padding: 12px 10px; border: 1px solid #e2e8f0; text-align: center; font-size: 12px; }
+            
+            .student-info { text-align: left; font-weight: 700; color: #0f172a; width: 250px; background: #fff; }
+            
+            .mardi { background-color: #fff7ed; }
+            .mercredi { background-color: #f0fdf4; }
+            .samedi { background-color: #eff6ff; }
+            .dimanche { background-color: #faf5ff; }
+            
+            .present { color: #10b981; font-weight: 900; font-size: 16px; }
+            .absent { color: #ef4444; font-weight: 900; font-size: 16px; }
+            .empty-cell { background-color: #f1f5f9; }
+            
+            @media print {
+              body { padding: 0; }
+              table { border-radius: 0; }
+              .mardi { background-color: #fff7ed !important; -webkit-print-color-adjust: exact; }
+              .mercredi { background-color: #f0fdf4 !important; -webkit-print-color-adjust: exact; }
+              .samedi { background-color: #eff6ff !important; -webkit-print-color-adjust: exact; }
+              .dimanche { background-color: #faf5ff !important; -webkit-print-color-adjust: exact; }
+              .empty-cell { background-color: #f1f5f9 !important; -webkit-print-color-adjust: exact; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header-info">
+            <h1>Rapport de Présence</h1>
+            <div class="week-date">Semaine du ${baseDate.toLocaleDateString('fr-FR')}</div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th rowspan="2">Informations Étudiant</th>
+                ${sessions.map(s => {
+      const d = getDateAtOffset(s.offset);
+      return `<th class="${s.day.toLowerCase()}">${formatDateShort(d)}<br/>${s.day}</th>`;
+    }).join('')}
+              </tr>
+              <tr>
+                ${sessions.map(s => `<th class="${s.day.toLowerCase()}">${s.label}</th>`).join('')}
+              </tr>
+            </thead>
+            <tbody>
+              ${week.records.map(record => `
+                <tr>
+                  <td class="student-info">${record.studentName}</td>
+                  ${sessions.map(s => {
+      const att = record.attendance.find(a => a.session === s.key);
+      if (!att) return `<td class="empty-cell"></td>`;
+      return `
+                      <td class="${s.day.toLowerCase()}">
+                        ${att.present ? '<span class="present">✓</span>' : '<span class="absent">✕</span>'}
+                      </td>
+                    `;
+    }).join('')}
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          <script>
+            window.onload = () => { 
+                setTimeout(() => { 
+                    window.print(); 
+                    window.close(); 
+                }, 500); 
+            };
+          </script>
+        </body>
+      </html>
+    `;
+    printWindow.document.write(html);
+    printWindow.document.close();
+  };
+
   const fetchWeeks = async () => {
     try {
       const { data } = await axios.get(`${BASE_URL}/api/weeks`);
@@ -731,6 +870,8 @@ function App() {
               onSelectHistoryWeek={handleSelectWeek}
               selectedWeekData={selectedWeekData}
               onCloseHistoryDetail={() => setSelectedWeekData(null)}
+              onDeleteWeek={handleDeleteWeek}
+              onDownloadWeek={handleDownloadWeek}
               onResetAll={handleResetAll}
               onUpdatePayment={handleUpdatePayment}
               onUpdateNotes={handleUpdateNotes}

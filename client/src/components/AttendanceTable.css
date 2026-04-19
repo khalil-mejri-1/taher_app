@@ -596,12 +596,12 @@ tbody td {
 .week-card {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  padding: 1.25rem;
+  justify-content: space-between;
+  padding: 0;
   background: #f8fafc;
   border: 2px solid transparent;
   border-radius: 16px;
-  cursor: pointer;
+  overflow: hidden;
   transition: all 0.2s ease;
 }
 
@@ -610,6 +610,56 @@ tbody td {
   border-color: #3b82f6;
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
   transform: translateY(-2px);
+}
+
+.week-card-main {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.25rem;
+  flex: 1;
+  cursor: pointer;
+}
+
+.week-card-actions {
+  display: flex;
+  gap: 0.5rem;
+  padding-right: 1.25rem;
+}
+
+.btn-download, .btn-delete-week {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  gap: 2px;
+}
+
+.btn-download {
+  background: #f0fdf4;
+  color: #16a34a;
+  width: auto;
+  padding: 0 8px;
+}
+
+.btn-download:hover {
+  background: #dcfce7;
+  transform: scale(1.05);
+}
+
+.btn-delete-week {
+  background: #fef2f2;
+  color: #ef4444;
+}
+
+.btn-delete-week:hover {
+  background: #fee2e2;
+  transform: scale(1.05);
 }
 
 .card-icon {
