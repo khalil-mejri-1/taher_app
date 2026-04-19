@@ -681,11 +681,41 @@ function App() {
     const newTotal = (student.totalSessionsCount || 0) + totalAdjust;
 
     try {
+      // 1. Prepare history update
       const updateData = {
         historyOverrides: newOverrides,
         totalSessionsCount: newTotal,
         cycleHistory: newCycleHistory
       };
+
+      // 2. Synchronize with current week attendance
+      // If the session we are toggling belongs to the current week, sync it.
+      const toggledSession = newCycleHistory[historyIndex];
+      if (toggledSession) {
+        const sessionDate = new Date(toggledSession.date);
+        const sessionKey = toggledSession.session;
+        
+        // If it's a valid session key and next state is NOT present/attended
+        const isNowPresent = (nextType === 'present' || nextType === 'attended' || nextType === 'compensated');
+        
+        let newAttendance = [...(student.attendance || [])];
+        const initialLen = newAttendance.length;
+
+        if (isNowPresent) {
+          // If now present, ensure it's in attendance
+          const exists = newAttendance.some(a => a.session === sessionKey && isSameDay(a.date, sessionDate));
+          if (!exists) {
+            newAttendance.push({ date: sessionDate, session: sessionKey, present: true });
+          }
+        } else {
+          // If now absent/red, remove from attendance
+          newAttendance = newAttendance.filter(a => !(a.session === sessionKey && isSameDay(a.date, sessionDate)));
+        }
+
+        if (newAttendance.length !== initialLen) {
+          updateData.attendance = newAttendance;
+        }
+      }
 
       await axios.put(`${API_URL}/${studentId}`, updateData);
 

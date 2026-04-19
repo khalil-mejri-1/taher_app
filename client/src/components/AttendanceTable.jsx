@@ -474,23 +474,86 @@ const AttendanceTable = ({
 
   const handleFinish = async (sessionKey) => {
     if (loadingSession) return;
-    
+    setLoadingSession(sessionKey);
     const isFinished = isSessionFinished(sessionKey);
-
+    
     if (isFinished) {
       const confirmed = await customConfirm("Annuler la clôture", "Voulez-vous vraiment annuler la clôture de cette session ? Cela réduira le compteur du cycle pour les élèves de cette حصة.");
-      if (!confirmed) return;
+      if (!confirmed) {
+        setLoadingSession(null);
+        return;
+      }
+    } else {
+      // BATCH SAVE PENDING CHANGES FOR THIS SESSION BEFORE FINISHING
+      const sessionStudents = getStudentsForSession(sessionKey);
+      const sessionDate = getSessionDate(sessionKey);
+      const sessionChanges = [];
+
+      Object.keys(pendingChanges).forEach(studentId => {
+        if (pendingChanges[studentId][sessionKey] !== undefined) {
+          const student = students.find(s => s._id === studentId);
+          if (student) {
+            const nextPresent = pendingChanges[studentId][sessionKey];
+            let newAttendance = [...(student.attendance || [])];
+            let cycleChange = 0;
+
+            const originalPresent = student.attendance?.some(a => 
+              a.session === sessionKey && a.present && isSameDay(a.date, sessionDate)
+            );
+
+            if (nextPresent !== originalPresent) {
+              if (nextPresent) {
+                newAttendance.push({ date: sessionDate, session: sessionKey, present: true });
+                cycleChange = 1;
+              } else {
+                newAttendance = newAttendance.filter(a => !(a.session === sessionKey && isSameDay(a.date, sessionDate)));
+                cycleChange = -1;
+              }
+
+              const maxS = isSundayOnly(student.planning) ? 5 : 8;
+              const newCompleted = Math.max(0, Math.min(maxS, (student.cycle?.completed || 0) + cycleChange));
+
+              sessionChanges.push({
+                id: studentId,
+                attendance: newAttendance,
+                cycle: { ...student.cycle, completed: newCompleted }
+              });
+            }
+          }
+        }
+      });
+
+      if (sessionChanges.length > 0) {
+        setIsSavingBatch(true);
+        setBatchProgress({ current: 0, total: sessionChanges.length });
+
+        for (let i = 0; i < sessionChanges.length; i++) {
+          setBatchProgress({ current: i + 1, total: sessionChanges.length });
+          await onBatchAttendance([sessionChanges[i]]);
+          await new Promise(r => setTimeout(r, 60));
+        }
+
+        // Clean up pendingChanges for this session
+        setPendingChanges(prev => {
+          const next = { ...prev };
+          sessionChanges.forEach(c => {
+            delete next[c.id][sessionKey];
+            if (Object.keys(next[c.id]).length === 0) delete next[c.id];
+          });
+          return next;
+        });
+
+        setIsSavingBatch(false);
+        setBatchProgress({ current: 0, total: 0 });
+      }
     }
     
-    setLoadingSession(sessionKey);
     try {
       const success = await onFinishSession(sessionKey, isFinished);
       if (success) {
         if (isFinished) {
-          // Revert: remove from finishedSessions
           setFinishedSessions(prev => prev.filter(k => k !== sessionKey));
         } else {
-          // Finish: add to finishedSessions
           setFinishedSessions(prev => [...prev, sessionKey]);
         }
       }
@@ -515,6 +578,23 @@ const AttendanceTable = ({
   };
 
 
+  const renderTerminalButtonContent = (sessionKey) => {
+    if (loadingSession === sessionKey) {
+      return (
+        <>
+          <Loader2 size={14} className="spin" />
+          {isSavingBatch ? `${batchProgress.current}/${batchProgress.total}` : (isSessionFinished(sessionKey) ? 'TERMINÉ' : 'TERMINER')}
+        </>
+      );
+    }
+    return (
+      <>
+        <CheckCircle size={14} />
+        {isSessionFinished(sessionKey) ? 'TERMINÉ' : 'TERMINER'}
+      </>
+    );
+  };
+
   return (
     <div className="attendance-container">
       <div className="table-header-controls">
@@ -535,40 +615,6 @@ const AttendanceTable = ({
                 <input type="date" value={formatDateForInput(currentWeekDate)} onChange={handleDatePickerChange} />
               </div>
               <button className="btn-new-week" onClick={handleNewWeekClick}>Nouvelle Semaine</button>
-              {Object.keys(pendingChanges).length > 0 && (
-                <button 
-                  className={`btn-save-batch ${isSavingBatch ? 'working' : ''}`} 
-                  onClick={handleSaveBatch}
-                  disabled={isSavingBatch}
-                  style={{
-                    backgroundColor: '#10b981',
-                    color: 'white',
-                    padding: '8px 16px',
-                    borderRadius: '8px',
-                    border: 'none',
-                    fontWeight: 'bold',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-                    animation: 'pulse 2s infinite'
-                  }}
-                >
-                  {isSavingBatch ? (
-                    <>
-                      <Loader2 size={18} className="spin" />
-                    تم ارسال {batchProgress.current} من {batchProgress.total}...
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle size={18} />
-                      ارسال الحضور ({Object.keys(pendingChanges).length})
-                    </>
-                  )}
-                </button>
-              )}
-
             </>
           )}
         </div>
@@ -671,8 +717,7 @@ const AttendanceTable = ({
                     onClick={() => handleFinish('mardi_matin')}
                     disabled={selectedWeekData || !!loadingSession}
                   >
-                    {loadingSession === 'mardi_matin' ? <Loader2 size={14} className="spin" /> : <CheckCircle size={14} />}
-                    {isSessionFinished('mardi_matin') ? 'TERMINÉ' : 'TERMINER'}
+                    {renderTerminalButtonContent('mardi_matin')}
                   </button>
                 </div>
               </th>
@@ -685,8 +730,7 @@ const AttendanceTable = ({
                     onClick={() => handleFinish('mercredi_matin')}
                     disabled={selectedWeekData || !!loadingSession}
                   >
-                    {loadingSession === 'mercredi_matin' ? <Loader2 size={14} className="spin" /> : <CheckCircle size={14} />}
-                    {isSessionFinished('mercredi_matin') ? 'TERMINÉ' : 'TERMINER'}
+                    {renderTerminalButtonContent('mercredi_matin')}
                   </button>
                 </div>
               </th>
@@ -699,8 +743,7 @@ const AttendanceTable = ({
                     onClick={() => handleFinish('mercredi_amidi')}
                     disabled={selectedWeekData || !!loadingSession}
                   >
-                    {loadingSession === 'mercredi_amidi' ? <Loader2 size={14} className="spin" /> : <CheckCircle size={14} />}
-                    {isSessionFinished('mercredi_amidi') ? 'TERMINÉ' : 'TERMINER'}
+                    {renderTerminalButtonContent('mercredi_amidi')}
                   </button>
                 </div>
               </th>
@@ -713,8 +756,7 @@ const AttendanceTable = ({
                     onClick={() => handleFinish('samedi_matin')}
                     disabled={selectedWeekData || !!loadingSession}
                   >
-                    {loadingSession === 'samedi_matin' ? <Loader2 size={14} className="spin" /> : <CheckCircle size={14} />}
-                    {isSessionFinished('samedi_matin') ? 'TERMINÉ' : 'TERMINER'}
+                    {renderTerminalButtonContent('samedi_matin')}
                   </button>
                 </div>
               </th>
@@ -727,8 +769,7 @@ const AttendanceTable = ({
                     onClick={() => handleFinish('samedi_amidi')}
                     disabled={selectedWeekData || !!loadingSession}
                   >
-                    {loadingSession === 'samedi_amidi' ? <Loader2 size={14} className="spin" /> : <CheckCircle size={14} />}
-                    {isSessionFinished('samedi_amidi') ? 'TERMINÉ' : 'TERMINER'}
+                    {renderTerminalButtonContent('samedi_amidi')}
                   </button>
                 </div>
               </th>
@@ -741,8 +782,7 @@ const AttendanceTable = ({
                     onClick={() => handleFinish('dimanche_unique')}
                     disabled={selectedWeekData || !!loadingSession}
                   >
-                    {loadingSession === 'dimanche_unique' ? <Loader2 size={14} className="spin" /> : <CheckCircle size={14} />}
-                    {(isSessionFinished('dimanche_unique') || loadingSession === 'dimanche_unique') ? 'TERMINÉ' : 'TERMINER'}
+                    {renderTerminalButtonContent('dimanche_unique')}
                   </button>
                 </div>
               </th>
