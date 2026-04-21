@@ -2,6 +2,7 @@ require("dotenv").config();
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
+const path = require("path");
 
 const app = express();
 
@@ -23,14 +24,16 @@ app.use("/api/students", require("./routes/students"));
 app.use("/api/weeks", require("./routes/weeks"));
 app.use("/api/system", require("./routes/system"));
 
-app.get("/", (req, res) => {
-    res.send("Server is running... 🚀");
+// Serve React App (Vite build folder: dist)
+app.use(express.static(path.join(__dirname, '../client/dist')));
+
+// Fallback to index.html for SPA routing
+app.get("*", (req, res) => {
+    res.sendFile(path.join(__dirname, '../client/dist', 'index.html'));
 });
 
-if (process.env.NODE_ENV !== 'production') {
-    app.listen(PORT, () => {
-        console.log(`Server running on http://localhost:${PORT}`);
-    });
-}
+app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+});
 
 module.exports = app;

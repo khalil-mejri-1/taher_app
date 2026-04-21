@@ -393,63 +393,13 @@ function App() {
   };
 
   const handleFinishSession = async (sessionKey, isUndo = false) => {
-    const day = sessionKey.split('_')[0];
-    const sessionType = sessionKey.split('_')[1];
-    const sessionDate = getSessionDate(sessionKey);
-
-    const affectedStudents = students.filter(s => s.planning?.[day]?.[sessionType]);
-
-    // We'll update students one by one or in a loop. 
-    // Given the batch infrastructure we have, we'll map them to update promises.
-    const updatePromises = affectedStudents.map(async (student) => {
-      let newHistory = [...(student.cycleHistory || [])];
-      let newTotalCount = student.totalSessionsCount || 0;
-      let newCompleted = student.cycle?.completed || 0;
-
-      if (isUndo) {
-        const initialCount = newHistory.length;
-        const entriesToRemove = newHistory.filter(h =>
-          h.session === sessionKey && isSameDay(h.date, sessionDate)
-        );
-
-        if (entriesToRemove.length > 0) {
-          newHistory = newHistory.filter(h =>
-            !(h.session === sessionKey && isSameDay(h.date, sessionDate))
-          );
-
-          const removedCount = initialCount - newHistory.length;
-          newTotalCount = Math.max(0, newTotalCount - removedCount);
-
-          // Revert completion count for each present record removed
-          entriesToRemove.forEach(removed => {
-            if (removed.type === 'present' || removed.type === 'attended' || removed.type === 'compensated' || removed.type === 'payer') {
-              newCompleted = Math.max(0, newCompleted - 1);
-            }
-          });
-        }
-      } else {
-        // Normal Finish
-        const isPresent = student.attendance?.some(a => a.session === sessionKey && a.present && isSameDay(a.date, sessionDate));
-
-        newHistory.push({
-          session: sessionKey,
-          date: sessionDate,
-          type: isPresent ? 'present' : 'absent'
-        });
-        newTotalCount = newTotalCount + 1;
-        // Completed count is handled by the checkbox click in the UI for the current week, 
-        // so we don't increment it again here to avoid double-counting.
-      }
-
-      return axios.put(`${API_URL}/${student._id}`, {
-        cycleHistory: newHistory,
-        totalSessionsCount: newTotalCount,
-        cycle: { ...student.cycle, completed: newCompleted }
-      });
-    });
-
     try {
-      await Promise.all(updatePromises);
+      const sessionDate = getSessionDate(sessionKey);
+      await axios.post(`${API_URL}/finish-session`, {
+        sessionKey,
+        sessionDate,
+        isUndo
+      });
       fetchStudents();
       return true;
     } catch (err) {
@@ -521,7 +471,7 @@ function App() {
   const handleBatchAttendance = async (updates) => {
     try {
       await axios.post(`${API_URL}/batch-attendance`, { updates });
-      fetchStudents();
+      await fetchStudents();
       return true;
     } catch (err) {
       console.error('Error batch updating attendance:', err);
