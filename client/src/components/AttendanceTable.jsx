@@ -549,7 +549,11 @@ const AttendanceTable = ({
     }
     
     try {
-      const success = await onFinishSession(sessionKey, isFinished);
+      const success = await onFinishSession(sessionKey, isFinished, (current, total) => {
+        setIsSavingBatch(true);
+        setBatchProgress({ current, total });
+      });
+      
       if (success) {
         if (isFinished) {
           setFinishedSessions(prev => prev.filter(k => k !== sessionKey));
@@ -558,6 +562,8 @@ const AttendanceTable = ({
         }
       }
     } finally {
+      setIsSavingBatch(false);
+      setBatchProgress({ current: 0, total: 0 });
       setLoadingSession(null);
     }
   };

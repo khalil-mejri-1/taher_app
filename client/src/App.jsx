@@ -392,15 +392,46 @@ function App() {
     return baseDate;
   };
 
-  const handleFinishSession = async (sessionKey, isUndo = false) => {
+  const handleFinishSession = async (sessionKey, isUndo = false, onProgress) => {
     try {
       const sessionDate = getSessionDate(sessionKey);
-      await axios.post(`${API_URL}/finish-session`, {
-        sessionKey,
-        sessionDate,
-        isUndo
-      });
-      fetchStudents();
+      const day = sessionKey.split('_')[0];
+      const sessionType = sessionKey.split('_')[1];
+
+      // Use a fresh fetch or the current state to filter students
+      const affectedStudents = students.filter(s => s.planning?.[day]?.[sessionType]);
+      const total = affectedStudents.length;
+
+      if (total === 0) {
+        await axios.post(`${API_URL}/finish-session`, { sessionKey, sessionDate, isUndo });
+        fetchStudents();
+        return true;
+      }
+
+      if (onProgress) onProgress(0, total);
+
+      // Process in small batches for stability and progress visibility
+      const batchSize = 6;
+      for (let i = 0; i < total; i += batchSize) {
+        const chunk = affectedStudents.slice(i, i + batchSize);
+        const chunkIds = chunk.map(s => s._id);
+
+        await axios.post(`${API_URL}/finish-session`, {
+          sessionKey,
+          sessionDate,
+          isUndo,
+          studentIds: chunkIds
+        });
+
+        if (onProgress) {
+          onProgress(Math.min(i + batchSize, total), total);
+        }
+        
+        // Small delay to make the counter visible
+        await new Promise(r => setTimeout(r, 80));
+      }
+
+      await fetchStudents();
       return true;
     } catch (err) {
       console.error('Error in handleFinishSession:', err);

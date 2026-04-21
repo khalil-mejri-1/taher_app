@@ -57,13 +57,18 @@ router.post("/batch-attendance", async (req, res) => {
 
 // Finish or Undo session for all relevant students
 router.post("/finish-session", async (req, res) => {
-  const { sessionKey, sessionDate, isUndo } = req.body;
+  const { sessionKey, sessionDate, isUndo, studentIds } = req.body;
   const day = sessionKey.split('_')[0];
   const sessionType = sessionKey.split('_')[1];
 
   try {
-    // Find all students who have this session in their planning
-    const students = await Student.find({ [`planning.${day}.${sessionType}`]: true });
+    // Find relevant students
+    const query = { [`planning.${day}.${sessionType}`]: true };
+    if (studentIds && Array.isArray(studentIds) && studentIds.length > 0) {
+      query._id = { $in: studentIds };
+    }
+    
+    const students = await Student.find(query);
 
     const bulkOps = students.map(student => {
       let newHistory = [...(student.cycleHistory || [])];
