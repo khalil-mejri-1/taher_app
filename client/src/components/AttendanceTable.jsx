@@ -183,26 +183,34 @@ const AttendanceTable = ({
   const handleCheckClick = (studentId, sessionKey) => {
     if (isArchivesView || selectedWeekData || isSessionFinished(sessionKey)) return;
     
-    const student = students.find(s => s._id === studentId);
+    const studentIdStr = studentId.toString();
+    const student = students.find(s => s._id.toString() === studentIdStr);
     if (!student) return;
 
     setPendingChanges(prev => {
-      const studentChanges = prev[studentId] || {};
+      const studentChanges = prev[studentIdStr] || {};
       
       // Determine if currently present considering pending changes
       const currentPresentInPending = studentChanges[sessionKey];
       
-      let basePresent = student.attendance?.some(a => a.session === sessionKey && a.present) || false;
+      // Determine base state using EXACTLY the same logic as isPresent to avoid discrepancies
+      const sessionDate = getSessionDate(sessionKey);
+      let basePresent = false;
       
-      // If not in current attendance, check history
-      if (!basePresent) {
-        const sessionDate = getSessionDate(sessionKey);
-        if (sessionDate) {
-          basePresent = student.cycleHistory?.some(h => 
-            isSameDay(h.date, sessionDate) &&
-            (h.type === 'attended' || h.type === 'compensated' || h.type === 'present' || h.type === 'payer')
-          ) || false;
-        }
+      if (sessionDate) {
+        // 1. Current week unsaved attendance
+        const inCurrentAttendance = student.attendance?.some(a => 
+          a.session === sessionKey && a.present && isSameDay(a.date, sessionDate)
+        );
+        
+        // 2. Persistent History check
+        const inHistory = student.cycleHistory?.some(h => 
+          h.session === sessionKey && 
+          isSameDay(h.date, sessionDate) &&
+          (h.type === 'present' || h.type === 'attended' || h.type === 'compensated' || h.type === 'payer')
+        );
+        
+        basePresent = inCurrentAttendance || inHistory || false;
       }
 
       const currentlyPresent = currentPresentInPending !== undefined 
@@ -227,9 +235,9 @@ const AttendanceTable = ({
       const newPending = { ...prev };
       if (Object.keys(newStudentChanges).length === 0) {
         // If no more changes for this student, remove the student entry
-        delete newPending[studentId];
+        delete newPending[studentIdStr];
       } else {
-        newPending[studentId] = newStudentChanges;
+        newPending[studentIdStr] = newStudentChanges;
       }
       
       return newPending;
@@ -242,14 +250,14 @@ const AttendanceTable = ({
     setIsSavingBatch(true);
     const updates = [];
 
-    for (const studentId of Object.keys(pendingChanges)) {
-      const student = students.find(s => s._id === studentId);
+    for (const studentIdStr of Object.keys(pendingChanges)) {
+      const student = students.find(s => s._id.toString() === studentIdStr);
       if (!student) continue;
 
       let newAttendance = [...(student.attendance || [])];
       let cycleChange = 0;
 
-      const studentSessionChanges = pendingChanges[studentId];
+      const studentSessionChanges = pendingChanges[studentIdStr];
       for (const sessionKey of Object.keys(studentSessionChanges)) {
         const nextPresent = studentSessionChanges[sessionKey];
         const sessionDate = getSessionDate(sessionKey);
@@ -415,7 +423,8 @@ const AttendanceTable = ({
     // 2. Live mode specific checks - Check pending changes FIRST
     if (!selectedWeekData) {
       // Pending local changes
-      const studentChanges = pendingChanges[student._id] || {};
+      const studentIdStr = student._id.toString();
+      const studentChanges = pendingChanges[studentIdStr] || {};
       if (studentChanges[sessionKey] !== undefined) {
         return studentChanges[sessionKey];
       }
@@ -448,8 +457,13 @@ const AttendanceTable = ({
     }
 
     // 2. Auto-detection (Primarily for History records or deep data integrity)
-    // In Live mode, we DISABLE auto-detection for 'attendance' so 'Send Attendance' 
-    // doesn't force the button to Gray. The user wants an explicit click.
+    // We only use auto-detection in History mode (selectedWeekData) or as a backup.
+    // In Live mode, we MUST rely on finishedSessions to avoid locking students 
+    // out of a session just because one record was created.
+    if (!selectedWeekData) {
+      return false; // In live mode, if not in finishedSessions, it's not finished.
+    }
+
     const sessionDate = getSessionDate(sessionKey);
     if (!sessionDate) return false;
     
@@ -457,14 +471,10 @@ const AttendanceTable = ({
     if (sessionStudents.length === 0) return false;
 
     // Check persistent records (cycleHistory)
-    // If ANY student has an entry in cycleHistory for this session/date, 
-    // it means the session has been at least partially "Recorded" and should be Gray.
     const recordedCount = sessionStudents.filter(s => 
       s.cycleHistory?.some(h => h.session === sessionKey && isSameDay(h.date, sessionDate))
     ).length;
 
-    // If we find ANY historical records for this day/session, it's Finished (Gray)
-    // This applies to both Live and History views.
     if (recordedCount > 0) {
       return true;
     }
@@ -489,11 +499,11 @@ const AttendanceTable = ({
       const sessionDate = getSessionDate(sessionKey);
       const sessionChanges = [];
 
-      Object.keys(pendingChanges).forEach(studentId => {
-        if (pendingChanges[studentId][sessionKey] !== undefined) {
-          const student = students.find(s => s._id === studentId);
+      Object.keys(pendingChanges).forEach(studentIdStr => {
+        if (pendingChanges[studentIdStr][sessionKey] !== undefined) {
+          const student = students.find(s => s._id.toString() === studentIdStr);
           if (student) {
-            const nextPresent = pendingChanges[studentId][sessionKey];
+            const nextPresent = pendingChanges[studentIdStr][sessionKey];
             let newAttendance = [...(student.attendance || [])];
             let cycleChange = 0;
 
@@ -514,7 +524,7 @@ const AttendanceTable = ({
               const newCompleted = Math.max(0, Math.min(maxS, (student.cycle?.completed || 0) + cycleChange));
 
               sessionChanges.push({
-                id: studentId,
+                id: studentIdStr,
                 attendance: newAttendance,
                 cycle: { ...student.cycle, completed: newCompleted }
               });

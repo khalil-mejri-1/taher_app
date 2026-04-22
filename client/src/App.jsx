@@ -9,8 +9,8 @@ import FinancePage from './components/FinancePage';
 import NotificationModal from './components/NotificationModal';
 import './index.css';
 
-const BASE_URL = 'https://taher-app.vercel.app';
-// const BASE_URL = 'http://localhost:5000';
+// const BASE_URL = 'https://taher-app.vercel.app';
+const BASE_URL = 'http://localhost:5000';
 const API_URL = `${BASE_URL}/api/students`;
 
 function App() {
@@ -426,7 +426,7 @@ function App() {
         if (onProgress) {
           onProgress(Math.min(i + batchSize, total), total);
         }
-        
+
         // Small delay to make the counter visible
         await new Promise(r => setTimeout(r, 80));
       }
