@@ -34,8 +34,11 @@ const AttendanceTable = ({
   const isSundayOnly = (p) => {
     if (!p) return false;
     return p.dimanche?.unique &&
+      !p.lundi?.matin && !p.lundi?.amidi &&
       !p.mardi?.matin &&
       !p.mercredi?.matin && !p.mercredi?.amidi &&
+      !p.jeudi?.matin && !p.jeudi?.amidi &&
+      !p.vendredi?.matin && !p.vendredi?.amidi &&
       !p.samedi?.matin && !p.samedi?.amidi;
   };
 
@@ -63,10 +66,14 @@ const AttendanceTable = ({
   };
 
   const baseWeekDate = selectedWeekData ? new Date(selectedWeekData.startDate) : currentWeekDate;
-  const mardiDate = baseWeekDate;
-  const mercrediDate = getWeekDay(baseWeekDate, 1);
-  const samediDate = getWeekDay(baseWeekDate, 4);
-  const dimancheDate = getWeekDay(baseWeekDate, 5);
+  const dAnchor = new Date(baseWeekDate);
+  const mardiDate = dAnchor.getUTCDay() === 1 ? getWeekDay(baseWeekDate, 1) : baseWeekDate;
+  const lundiDate = getWeekDay(mardiDate, -1);
+  const mercrediDate = getWeekDay(mardiDate, 1);
+  const jeudiDate = getWeekDay(mardiDate, 2);
+  const vendrediDate = getWeekDay(mardiDate, 3);
+  const samediDate = getWeekDay(mardiDate, 4);
+  const dimancheDate = getWeekDay(mardiDate, 5);
 
   const enhancedStudents = useMemo(() => {
     const weekEndDate = new Date(dimancheDate);
@@ -162,9 +169,15 @@ const AttendanceTable = ({
 
   // Map session keys to planning paths
   const SESSION_PLANNING_MAP = {
+    lundi_matin: (p) => p?.lundi?.matin,
+    lundi_amidi: (p) => p?.lundi?.amidi,
     mardi_matin: (p) => p?.mardi?.matin,
     mercredi_matin: (p) => p?.mercredi?.matin,
     mercredi_amidi: (p) => p?.mercredi?.amidi,
+    jeudi_matin: (p) => p?.jeudi?.matin,
+    jeudi_amidi: (p) => p?.jeudi?.amidi,
+    vendredi_matin: (p) => p?.vendredi?.matin,
+    vendredi_amidi: (p) => p?.vendredi?.amidi,
     samedi_matin: (p) => p?.samedi?.matin,
     samedi_amidi: (p) => p?.samedi?.amidi,
     dimanche_unique: (p) => p?.dimanche?.unique,
@@ -401,10 +414,17 @@ const AttendanceTable = ({
 
   const getSessionDate = (sessionKey) => {
     const baseDate = baseWeekDate;
-    if (sessionKey.startsWith('mardi')) return baseDate;
-    if (sessionKey.startsWith('mercredi')) return getWeekDay(baseDate, 1);
-    if (sessionKey.startsWith('samedi')) return getWeekDay(baseDate, 4);
-    if (sessionKey.startsWith('dimanche')) return getWeekDay(baseDate, 5);
+    const d = new Date(baseDate);
+    const dayOfWeek = d.getUTCDay();
+    const mardiDate = dayOfWeek === 1 ? getWeekDay(baseDate, 1) : baseDate;
+
+    if (sessionKey.startsWith('lundi')) return getWeekDay(mardiDate, -1);
+    if (sessionKey.startsWith('mardi')) return mardiDate;
+    if (sessionKey.startsWith('mercredi')) return getWeekDay(mardiDate, 1);
+    if (sessionKey.startsWith('jeudi')) return getWeekDay(mardiDate, 2);
+    if (sessionKey.startsWith('vendredi')) return getWeekDay(mardiDate, 3);
+    if (sessionKey.startsWith('samedi')) return getWeekDay(mardiDate, 4);
+    if (sessionKey.startsWith('dimanche')) return getWeekDay(mardiDate, 5);
     return null;
   };
 
@@ -598,15 +618,15 @@ const AttendanceTable = ({
     if (loadingSession === sessionKey) {
       return (
         <>
-          <Loader2 size={14} className="spin" />
-          {isSavingBatch ? `${batchProgress.current}/${batchProgress.total}` : (isSessionFinished(sessionKey) ? 'TERMINÉ' : 'TERMINER')}
+          <Loader2 size={11} className="spin" />
+          <span>{isSavingBatch ? `${batchProgress.current}/${batchProgress.total}` : '...'}</span>
         </>
       );
     }
     return (
       <>
-        <CheckCircle size={14} />
-        {isSessionFinished(sessionKey) ? 'TERMINÉ' : 'TERMINER'}
+        <CheckCircle size={11} />
+        <span>{isSessionFinished(sessionKey) ? 'Fait' : 'Fin'}</span>
       </>
     );
   };
@@ -627,7 +647,7 @@ const AttendanceTable = ({
                 <History size={18} /> Historique Semaines
               </button>
               <div className="date-picker">
-                <label>DATE DU MARDI:</label>
+                <label>DATE DE LA SEMAINE:</label>
                 <input type="date" value={formatDateForInput(currentWeekDate)} onChange={handleDatePickerChange} />
               </div>
               <button className="btn-new-week" onClick={handleNewWeekClick}>Nouvelle Semaine</button>
@@ -656,147 +676,213 @@ const AttendanceTable = ({
         </select>
       </div>
 
-      <div className="session-filters-bar" style={{ display: 'flex', gap: '10px', marginBottom: '15px', padding: '0 10px', overflowX: 'auto', paddingBottom: '5px' }}>
-        <button 
-          className={`session-filter-btn ${sessionFilter === 'all' ? 'active' : ''}`}
-          onClick={() => setSessionFilter('all')}
-          style={{ padding: '8px 16px', borderRadius: '20px', border: sessionFilter === 'all' ? 'none' : '1px solid #e2e8f0', background: sessionFilter === 'all' ? '#10b981' : 'white', color: sessionFilter === 'all' ? 'white' : '#64748b', fontWeight: '500', cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.2s' }}
-        >
-          Tous les étudiants
-        </button>
-        <button 
-          className={`session-filter-btn ${sessionFilter === 'mardi_matin' ? 'active' : ''}`}
-          onClick={() => setSessionFilter('mardi_matin')}
-          style={{ padding: '8px 16px', borderRadius: '20px', border: sessionFilter === 'mardi_matin' ? 'none' : '1px solid #e2e8f0', background: sessionFilter === 'mardi_matin' ? '#3b82f6' : 'white', color: sessionFilter === 'mardi_matin' ? 'white' : '#64748b', fontWeight: '500', cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.2s' }}
-        >
-          Mardi Matin
-        </button>
-        <button 
-          className={`session-filter-btn ${sessionFilter === 'mercredi_matin' ? 'active' : ''}`}
-          onClick={() => setSessionFilter('mercredi_matin')}
-          style={{ padding: '8px 16px', borderRadius: '20px', border: sessionFilter === 'mercredi_matin' ? 'none' : '1px solid #e2e8f0', background: sessionFilter === 'mercredi_matin' ? '#3b82f6' : 'white', color: sessionFilter === 'mercredi_matin' ? 'white' : '#64748b', fontWeight: '500', cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.2s' }}
-        >
-          Mercredi Matin
-        </button>
-        <button 
-          className={`session-filter-btn ${sessionFilter === 'mercredi_amidi' ? 'active' : ''}`}
-          onClick={() => setSessionFilter('mercredi_amidi')}
-          style={{ padding: '8px 16px', borderRadius: '20px', border: sessionFilter === 'mercredi_amidi' ? 'none' : '1px solid #e2e8f0', background: sessionFilter === 'mercredi_amidi' ? '#3b82f6' : 'white', color: sessionFilter === 'mercredi_amidi' ? 'white' : '#64748b', fontWeight: '500', cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.2s' }}
-        >
-          Mercredi A.Midi
-        </button>
-        <button 
-          className={`session-filter-btn ${sessionFilter === 'samedi_matin' ? 'active' : ''}`}
-          onClick={() => setSessionFilter('samedi_matin')}
-          style={{ padding: '8px 16px', borderRadius: '20px', border: sessionFilter === 'samedi_matin' ? 'none' : '1px solid #e2e8f0', background: sessionFilter === 'samedi_matin' ? '#3b82f6' : 'white', color: sessionFilter === 'samedi_matin' ? 'white' : '#64748b', fontWeight: '500', cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.2s' }}
-        >
-          Samedi Matin
-        </button>
-        <button 
-          className={`session-filter-btn ${sessionFilter === 'samedi_amidi' ? 'active' : ''}`}
-          onClick={() => setSessionFilter('samedi_amidi')}
-          style={{ padding: '8px 16px', borderRadius: '20px', border: sessionFilter === 'samedi_amidi' ? 'none' : '1px solid #e2e8f0', background: sessionFilter === 'samedi_amidi' ? '#3b82f6' : 'white', color: sessionFilter === 'samedi_amidi' ? 'white' : '#64748b', fontWeight: '500', cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.2s' }}
-        >
-          Samedi A.Midi
-        </button>
-        <button 
-          className={`session-filter-btn ${sessionFilter === 'dimanche_unique' ? 'active' : ''}`}
-          onClick={() => setSessionFilter('dimanche_unique')}
-          style={{ padding: '8px 16px', borderRadius: '20px', border: sessionFilter === 'dimanche_unique' ? 'none' : '1px solid #e2e8f0', background: sessionFilter === 'dimanche_unique' ? '#3b82f6' : 'white', color: sessionFilter === 'dimanche_unique' ? 'white' : '#64748b', fontWeight: '500', cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.2s' }}
-        >
-          Dimanche Unique
-        </button>
+      <div className="session-filters-bar">
+        {[
+          { key: 'all', label: 'Tous les élèves', isAll: true },
+          { key: 'lundi_matin', label: 'Lun. Matin' },
+          { key: 'lundi_amidi', label: 'Lun. A.Midi' },
+          { key: 'mardi_matin', label: 'Mar. Matin' },
+          { key: 'mercredi_matin', label: 'Mer. Matin' },
+          { key: 'mercredi_amidi', label: 'Mer. A.Midi' },
+          { key: 'jeudi_matin', label: 'Jeu. Matin' },
+          { key: 'jeudi_amidi', label: 'Jeu. A.Midi' },
+          { key: 'vendredi_matin', label: 'Ven. Matin' },
+          { key: 'vendredi_amidi', label: 'Ven. A.Midi' },
+          { key: 'samedi_matin', label: 'Sam. Matin' },
+          { key: 'samedi_amidi', label: 'Sam. A.Midi' },
+          { key: 'dimanche_unique', label: 'Dimanche' },
+        ].map((f) => (
+          <button
+            key={f.key}
+            className={`session-filter-btn ${sessionFilter === f.key ? 'active' : ''} ${f.isAll ? 'all' : ''}`}
+            onClick={() => setSessionFilter(f.key)}
+          >
+            {f.label}
+          </button>
+        ))}
       </div>
 
       <div className="table-wrapper">
         <table>
           <thead>
             <tr className="main-header">
-              <th rowSpan="2">INFORMATIONS ÉTUDIANT</th>
+              <th className="th-student-info" rowSpan="2">INFORMATIONS ÉTUDIANT</th>
+              <th className="th-lundi" colSpan="2">{formatDate(lundiDate)}<br /> LUNDI</th>
               <th className="th-mardi">{formatDate(mardiDate)}<br /> MARDI</th>
-
               <th className="th-mercredi" colSpan="2">{formatDate(mercrediDate)}<br /> MERCREDI</th>
+              <th className="th-jeudi" colSpan="2">{formatDate(jeudiDate)}<br /> JEUDI</th>
+              <th className="th-vendredi" colSpan="2">{formatDate(vendrediDate)}<br /> VENDREDI</th>
               <th className="th-samedi" colSpan="2">{formatDate(samediDate)}<br /> SAMEDI</th>
               <th className="th-dimanche">{formatDate(dimancheDate)}<br /> DIMANCHE</th>
-              <th rowSpan="2">CYCLE (SESSION)</th>
-              <th rowSpan="2">RÈGLEMENT</th>
-              <th rowSpan="2">ANNOTATIONS</th>
-              <th rowSpan="2">ACTIONS</th>
+              <th className="th-cycle" rowSpan="2">CYCLE (SESSION)</th>
+              <th className="th-payment" rowSpan="2">RÈGLEMENT</th>
+              <th className="th-notes" rowSpan="2">ANNOTATIONS</th>
+              <th className="th-actions" rowSpan="2">ACTIONS</th>
             </tr>
             <tr className="sub-header">
-              <th className="th-mardi">
+              <th className="th-lundi th-session">
+                <div className="session-header">
+                  <span className="session-label-btn" onClick={() => openSessionModal('lundi_matin', 'MATIN', 'LUNDI')}>MATIN</span>
+                  <span className="session-count-label">{getStudentsForSession('lundi_matin').length} él.</span>
+                  <button
+                    className={`btn-term ${isSessionFinished('lundi_matin') ? 'finished' : ''} ${loadingSession ? 'working' : ''}`}
+                    onClick={() => handleFinish('lundi_matin')}
+                    disabled={selectedWeekData || !!loadingSession}
+                    title={isSessionFinished('lundi_matin') ? "Séance clôturée (Cliquer pour rouvrir)" : "Clôturer la séance"}
+                  >
+                    {renderTerminalButtonContent('lundi_matin')}
+                  </button>
+                </div>
+              </th>
+              <th className="th-lundi th-session">
+                <div className="session-header">
+                  <span className="session-label-btn" onClick={() => openSessionModal('lundi_amidi', 'A.MIDI', 'LUNDI')}>A.MIDI</span>
+                  <span className="session-count-label">{getStudentsForSession('lundi_amidi').length} él.</span>
+                  <button
+                    className={`btn-term ${isSessionFinished('lundi_amidi') ? 'finished' : ''} ${loadingSession ? 'working' : ''}`}
+                    onClick={() => handleFinish('lundi_amidi')}
+                    disabled={selectedWeekData || !!loadingSession}
+                    title={isSessionFinished('lundi_amidi') ? "Séance clôturée (Cliquer pour rouvrir)" : "Clôturer la séance"}
+                  >
+                    {renderTerminalButtonContent('lundi_amidi')}
+                  </button>
+                </div>
+              </th>
+              <th className="th-mardi th-session">
                 <div className="session-header">
                   <span className="session-label-btn" onClick={() => openSessionModal('mardi_matin', 'MATIN', 'MARDI')}>MATIN</span>
-                  <span className="session-count-label">{getStudentsForSession('mardi_matin').length} élèves</span>
+                  <span className="session-count-label">{getStudentsForSession('mardi_matin').length} él.</span>
                   <button
                     className={`btn-term ${isSessionFinished('mardi_matin') ? 'finished' : ''} ${loadingSession ? 'working' : ''}`}
                     onClick={() => handleFinish('mardi_matin')}
                     disabled={selectedWeekData || !!loadingSession}
+                    title={isSessionFinished('mardi_matin') ? "Séance clôturée (Cliquer pour rouvrir)" : "Clôturer la séance"}
                   >
                     {renderTerminalButtonContent('mardi_matin')}
                   </button>
                 </div>
               </th>
-              <th className="th-mercredi">
+              <th className="th-mercredi th-session">
                 <div className="session-header">
                   <span className="session-label-btn" onClick={() => openSessionModal('mercredi_matin', 'MATIN', 'MERCREDI')}>MATIN</span>
-                  <span className="session-count-label">{getStudentsForSession('mercredi_matin').length} élèves</span>
+                  <span className="session-count-label">{getStudentsForSession('mercredi_matin').length} él.</span>
                   <button
                     className={`btn-term ${isSessionFinished('mercredi_matin') ? 'finished' : ''} ${loadingSession ? 'working' : ''}`}
                     onClick={() => handleFinish('mercredi_matin')}
                     disabled={selectedWeekData || !!loadingSession}
+                    title={isSessionFinished('mercredi_matin') ? "Séance clôturée (Cliquer pour rouvrir)" : "Clôturer la séance"}
                   >
                     {renderTerminalButtonContent('mercredi_matin')}
                   </button>
                 </div>
               </th>
-              <th className="th-mercredi">
+              <th className="th-mercredi th-session">
                 <div className="session-header">
                   <span className="session-label-btn" onClick={() => openSessionModal('mercredi_amidi', 'A.MIDI', 'MERCREDI')}>A.MIDI</span>
-                  <span className="session-count-label">{getStudentsForSession('mercredi_amidi').length} élèves</span>
+                  <span className="session-count-label">{getStudentsForSession('mercredi_amidi').length} él.</span>
                   <button
                     className={`btn-term ${isSessionFinished('mercredi_amidi') ? 'finished' : ''} ${loadingSession ? 'working' : ''}`}
                     onClick={() => handleFinish('mercredi_amidi')}
                     disabled={selectedWeekData || !!loadingSession}
+                    title={isSessionFinished('mercredi_amidi') ? "Séance clôturée (Cliquer pour rouvrir)" : "Clôturer la séance"}
                   >
                     {renderTerminalButtonContent('mercredi_amidi')}
                   </button>
                 </div>
               </th>
-              <th className="th-samedi">
+              <th className="th-jeudi th-session">
+                <div className="session-header">
+                  <span className="session-label-btn" onClick={() => openSessionModal('jeudi_matin', 'MATIN', 'JEUDI')}>MATIN</span>
+                  <span className="session-count-label">{getStudentsForSession('jeudi_matin').length} él.</span>
+                  <button
+                    className={`btn-term ${isSessionFinished('jeudi_matin') ? 'finished' : ''} ${loadingSession ? 'working' : ''}`}
+                    onClick={() => handleFinish('jeudi_matin')}
+                    disabled={selectedWeekData || !!loadingSession}
+                    title={isSessionFinished('jeudi_matin') ? "Séance clôturée (Cliquer pour rouvrir)" : "Clôturer la séance"}
+                  >
+                    {renderTerminalButtonContent('jeudi_matin')}
+                  </button>
+                </div>
+              </th>
+              <th className="th-jeudi th-session">
+                <div className="session-header">
+                  <span className="session-label-btn" onClick={() => openSessionModal('jeudi_amidi', 'A.MIDI', 'JEUDI')}>A.MIDI</span>
+                  <span className="session-count-label">{getStudentsForSession('jeudi_amidi').length} él.</span>
+                  <button
+                    className={`btn-term ${isSessionFinished('jeudi_amidi') ? 'finished' : ''} ${loadingSession ? 'working' : ''}`}
+                    onClick={() => handleFinish('jeudi_amidi')}
+                    disabled={selectedWeekData || !!loadingSession}
+                    title={isSessionFinished('jeudi_amidi') ? "Séance clôturée (Cliquer pour rouvrir)" : "Clôturer la séance"}
+                  >
+                    {renderTerminalButtonContent('jeudi_amidi')}
+                  </button>
+                </div>
+              </th>
+              <th className="th-vendredi th-session">
+                <div className="session-header">
+                  <span className="session-label-btn" onClick={() => openSessionModal('vendredi_matin', 'MATIN', 'VENDREDI')}>MATIN</span>
+                  <span className="session-count-label">{getStudentsForSession('vendredi_matin').length} él.</span>
+                  <button
+                    className={`btn-term ${isSessionFinished('vendredi_matin') ? 'finished' : ''} ${loadingSession ? 'working' : ''}`}
+                    onClick={() => handleFinish('vendredi_matin')}
+                    disabled={selectedWeekData || !!loadingSession}
+                    title={isSessionFinished('vendredi_matin') ? "Séance clôturée (Cliquer pour rouvrir)" : "Clôturer la séance"}
+                  >
+                    {renderTerminalButtonContent('vendredi_matin')}
+                  </button>
+                </div>
+              </th>
+              <th className="th-vendredi th-session">
+                <div className="session-header">
+                  <span className="session-label-btn" onClick={() => openSessionModal('vendredi_amidi', 'A.MIDI', 'VENDREDI')}>A.MIDI</span>
+                  <span className="session-count-label">{getStudentsForSession('vendredi_amidi').length} él.</span>
+                  <button
+                    className={`btn-term ${isSessionFinished('vendredi_amidi') ? 'finished' : ''} ${loadingSession ? 'working' : ''}`}
+                    onClick={() => handleFinish('vendredi_amidi')}
+                    disabled={selectedWeekData || !!loadingSession}
+                    title={isSessionFinished('vendredi_amidi') ? "Séance clôturée (Cliquer pour rouvrir)" : "Clôturer la séance"}
+                  >
+                    {renderTerminalButtonContent('vendredi_amidi')}
+                  </button>
+                </div>
+              </th>
+              <th className="th-samedi th-session">
                 <div className="session-header">
                   <span className="session-label-btn" onClick={() => openSessionModal('samedi_matin', 'MATIN', 'SAMEDI')}>MATIN</span>
-                  <span className="session-count-label">{getStudentsForSession('samedi_matin').length} élèves</span>
+                  <span className="session-count-label">{getStudentsForSession('samedi_matin').length} él.</span>
                   <button
                     className={`btn-term ${isSessionFinished('samedi_matin') ? 'finished' : ''} ${loadingSession ? 'working' : ''}`}
                     onClick={() => handleFinish('samedi_matin')}
                     disabled={selectedWeekData || !!loadingSession}
+                    title={isSessionFinished('samedi_matin') ? "Séance clôturée (Cliquer pour rouvrir)" : "Clôturer la séance"}
                   >
                     {renderTerminalButtonContent('samedi_matin')}
                   </button>
                 </div>
               </th>
-              <th className="th-samedi">
+              <th className="th-samedi th-session">
                 <div className="session-header">
                   <span className="session-label-btn" onClick={() => openSessionModal('samedi_amidi', 'A.MIDI', 'SAMEDI')}>A.MIDI</span>
-                  <span className="session-count-label">{getStudentsForSession('samedi_amidi').length} élèves</span>
+                  <span className="session-count-label">{getStudentsForSession('samedi_amidi').length} él.</span>
                   <button
                     className={`btn-term ${isSessionFinished('samedi_amidi') ? 'finished' : ''} ${loadingSession ? 'working' : ''}`}
                     onClick={() => handleFinish('samedi_amidi')}
                     disabled={selectedWeekData || !!loadingSession}
+                    title={isSessionFinished('samedi_amidi') ? "Séance clôturée (Cliquer pour rouvrir)" : "Clôturer la séance"}
                   >
                     {renderTerminalButtonContent('samedi_amidi')}
                   </button>
                 </div>
               </th>
-              <th className="th-dimanche">
+              <th className="th-dimanche th-session">
                 <div className="session-header">
                   <span className="session-label-btn" onClick={() => openSessionModal('dimanche_unique', 'UNIQUE', 'DIMANCHE')}>UNIQUE</span>
-                  <span className="session-count-label">{getStudentsForSession('dimanche_unique').length} élèves</span>
+                  <span className="session-count-label">{getStudentsForSession('dimanche_unique').length} él.</span>
                   <button
                     className={`btn-term ${isSessionFinished('dimanche_unique') ? 'finished' : ''} ${loadingSession ? 'working' : ''}`}
                     onClick={() => handleFinish('dimanche_unique')}
                     disabled={selectedWeekData || !!loadingSession}
+                    title={isSessionFinished('dimanche_unique') ? "Séance clôturée (Cliquer pour rouvrir)" : "Clôturer la séance"}
                   >
                     {renderTerminalButtonContent('dimanche_unique')}
                   </button>
@@ -809,7 +895,7 @@ const AttendanceTable = ({
               // --- Skeleton Loading State ---
               Array.from({ length: itemsPerPage }).map((_, idx) => (
                 <tr key={`skeleton-${idx}`}>
-                  <td>
+                  <td className="td-student-info">
                     <div className="student-info-cell" style={{ gap: '15px' }}>
                       <div className="skeleton skeleton-avatar"></div>
                       <div className="student-details" style={{ gap: '6px' }}>
@@ -819,13 +905,13 @@ const AttendanceTable = ({
                     </div>
                   </td>
                   {/* Attendance Checkboxes Skeleton */}
-                  {Array.from({ length: 4 }).map((_, i) => (
-                    <td key={`sk-check-${i}`}>
+                  {Array.from({ length: 12 }).map((_, i) => (
+                    <td key={`sk-check-${i}`} className="td-session">
                       <div className="skeleton skeleton-box"></div>
                     </td>
                   ))}
                   {/* Cycle Skeleton */}
-                  <td>
+                  <td className="td-cycle">
                     <div className="cycle-tracker">
                       {Array.from({ length: 8 }).map((_, i) => (
                         <div key={`sk-dot-${i}`} className="skeleton skeleton-dot"></div>
@@ -833,15 +919,15 @@ const AttendanceTable = ({
                     </div>
                   </td>
                   {/* Payment Skeleton */}
-                  <td>
+                  <td className="td-payment">
                     <div className="skeleton skeleton-select"></div>
                   </td>
                   {/* Annotations Skeleton */}
-                  <td>
+                  <td className="td-notes">
                     <div className="skeleton skeleton-input"></div>
                   </td>
                   {/* Actions Skeleton */}
-                  <td>
+                  <td className="td-actions">
                     <div className="action-btns">
                       <div className="skeleton skeleton-icon"></div>
                       <div className="skeleton skeleton-icon"></div>
@@ -852,7 +938,7 @@ const AttendanceTable = ({
               ))
             ) : paginatedStudents.length === 0 ? (
               <tr>
-                <td colSpan="8" style={{ textAlign: 'center', padding: '2rem', color: '#64748b', fontWeight: 'bold' }}>
+                <td colSpan="17" style={{ textAlign: 'center', padding: '2rem', color: '#64748b', fontWeight: 'bold' }}>
                   Aucun étudiant trouvé.
                 </td>
               </tr>
@@ -862,7 +948,7 @@ const AttendanceTable = ({
                   key={student._id}
                   className={student.paymentStatus === 'Payer / تم الخلاص' ? 'row-payer' : ''}
                 >
-                <td>
+                <td className="td-student-info">
                   <div className="student-info-cell">
                     <div className="student-avatar">
                       {student.name[0]}
@@ -879,7 +965,23 @@ const AttendanceTable = ({
                     </div>
                   </div>
                 </td>
-                <td>
+                <td className="td-session">
+                  <div
+                    className={`attendance-check ${!student.planning?.lundi?.matin ? 'disabled' : ''} ${isSessionFinished('lundi_matin') ? 'locked' : ''} ${isPresent(student, 'lundi_matin') ? 'present' : ''} ${loadingCheck?.studentId === student._id && loadingCheck?.sessionKey === 'lundi_matin' ? 'loading' : ''}`}
+                    onClick={() => !isArchivesView && !selectedWeekData && !loadingCheck && !isSessionFinished('lundi_matin') && student.planning?.lundi?.matin && handleCheckClick(student._id, 'lundi_matin')}
+                  >
+                    {loadingCheck?.studentId === student._id && loadingCheck?.sessionKey === 'lundi_matin' && <Loader2 size={12} className="check-spinner" />}
+                  </div>
+                </td>
+                <td className="td-session">
+                  <div
+                    className={`attendance-check ${!student.planning?.lundi?.amidi ? 'disabled' : ''} ${isSessionFinished('lundi_amidi') ? 'locked' : ''} ${isPresent(student, 'lundi_amidi') ? 'present' : ''} ${loadingCheck?.studentId === student._id && loadingCheck?.sessionKey === 'lundi_amidi' ? 'loading' : ''}`}
+                    onClick={() => !isArchivesView && !selectedWeekData && !loadingCheck && !isSessionFinished('lundi_amidi') && student.planning?.lundi?.amidi && handleCheckClick(student._id, 'lundi_amidi')}
+                  >
+                    {loadingCheck?.studentId === student._id && loadingCheck?.sessionKey === 'lundi_amidi' && <Loader2 size={12} className="check-spinner" />}
+                  </div>
+                </td>
+                <td className="td-session">
                   <div
                     className={`attendance-check ${!student.planning?.mardi?.matin ? 'disabled' : ''} ${isSessionFinished('mardi_matin') ? 'locked' : ''} ${isPresent(student, 'mardi_matin') ? 'present' : ''} ${loadingCheck?.studentId === student._id && loadingCheck?.sessionKey === 'mardi_matin' ? 'loading' : ''}`}
                     onClick={() => !isArchivesView && !selectedWeekData && !loadingCheck && !isSessionFinished('mardi_matin') && student.planning?.mardi?.matin && handleCheckClick(student._id, 'mardi_matin')}
@@ -887,7 +989,7 @@ const AttendanceTable = ({
                     {loadingCheck?.studentId === student._id && loadingCheck?.sessionKey === 'mardi_matin' && <Loader2 size={12} className="check-spinner" />}
                   </div>
                 </td>
-                <td>
+                <td className="td-session">
                   <div
                     className={`attendance-check ${!student.planning?.mercredi?.matin ? 'disabled' : ''} ${isSessionFinished('mercredi_matin') ? 'locked' : ''} ${isPresent(student, 'mercredi_matin') ? 'present' : ''} ${loadingCheck?.studentId === student._id && loadingCheck?.sessionKey === 'mercredi_matin' ? 'loading' : ''}`}
                     onClick={() => !isArchivesView && !selectedWeekData && !loadingCheck && !isSessionFinished('mercredi_matin') && student.planning?.mercredi?.matin && handleCheckClick(student._id, 'mercredi_matin')}
@@ -895,7 +997,7 @@ const AttendanceTable = ({
                     {loadingCheck?.studentId === student._id && loadingCheck?.sessionKey === 'mercredi_matin' && <Loader2 size={12} className="check-spinner" />}
                   </div>
                 </td>
-                <td>
+                <td className="td-session">
                   <div
                     className={`attendance-check ${!student.planning?.mercredi?.amidi ? 'disabled' : ''} ${isSessionFinished('mercredi_amidi') ? 'locked' : ''} ${isPresent(student, 'mercredi_amidi') ? 'present' : ''} ${loadingCheck?.studentId === student._id && loadingCheck?.sessionKey === 'mercredi_amidi' ? 'loading' : ''}`}
                     onClick={() => !isArchivesView && !selectedWeekData && !loadingCheck && !isSessionFinished('mercredi_amidi') && student.planning?.mercredi?.amidi && handleCheckClick(student._id, 'mercredi_amidi')}
@@ -903,7 +1005,39 @@ const AttendanceTable = ({
                     {loadingCheck?.studentId === student._id && loadingCheck?.sessionKey === 'mercredi_amidi' && <Loader2 size={12} className="check-spinner" />}
                   </div>
                 </td>
-                <td>
+                <td className="td-session">
+                  <div
+                    className={`attendance-check ${!student.planning?.jeudi?.matin ? 'disabled' : ''} ${isSessionFinished('jeudi_matin') ? 'locked' : ''} ${isPresent(student, 'jeudi_matin') ? 'present' : ''} ${loadingCheck?.studentId === student._id && loadingCheck?.sessionKey === 'jeudi_matin' ? 'loading' : ''}`}
+                    onClick={() => !isArchivesView && !selectedWeekData && !loadingCheck && !isSessionFinished('jeudi_matin') && student.planning?.jeudi?.matin && handleCheckClick(student._id, 'jeudi_matin')}
+                  >
+                    {loadingCheck?.studentId === student._id && loadingCheck?.sessionKey === 'jeudi_matin' && <Loader2 size={12} className="check-spinner" />}
+                  </div>
+                </td>
+                <td className="td-session">
+                  <div
+                    className={`attendance-check ${!student.planning?.jeudi?.amidi ? 'disabled' : ''} ${isSessionFinished('jeudi_amidi') ? 'locked' : ''} ${isPresent(student, 'jeudi_amidi') ? 'present' : ''} ${loadingCheck?.studentId === student._id && loadingCheck?.sessionKey === 'jeudi_amidi' ? 'loading' : ''}`}
+                    onClick={() => !isArchivesView && !selectedWeekData && !loadingCheck && !isSessionFinished('jeudi_amidi') && student.planning?.jeudi?.amidi && handleCheckClick(student._id, 'jeudi_amidi')}
+                  >
+                    {loadingCheck?.studentId === student._id && loadingCheck?.sessionKey === 'jeudi_amidi' && <Loader2 size={12} className="check-spinner" />}
+                  </div>
+                </td>
+                <td className="td-session">
+                  <div
+                    className={`attendance-check ${!student.planning?.vendredi?.matin ? 'disabled' : ''} ${isSessionFinished('vendredi_matin') ? 'locked' : ''} ${isPresent(student, 'vendredi_matin') ? 'present' : ''} ${loadingCheck?.studentId === student._id && loadingCheck?.sessionKey === 'vendredi_matin' ? 'loading' : ''}`}
+                    onClick={() => !isArchivesView && !selectedWeekData && !loadingCheck && !isSessionFinished('vendredi_matin') && student.planning?.vendredi?.matin && handleCheckClick(student._id, 'vendredi_matin')}
+                  >
+                    {loadingCheck?.studentId === student._id && loadingCheck?.sessionKey === 'vendredi_matin' && <Loader2 size={12} className="check-spinner" />}
+                  </div>
+                </td>
+                <td className="td-session">
+                  <div
+                    className={`attendance-check ${!student.planning?.vendredi?.amidi ? 'disabled' : ''} ${isSessionFinished('vendredi_amidi') ? 'locked' : ''} ${isPresent(student, 'vendredi_amidi') ? 'present' : ''} ${loadingCheck?.studentId === student._id && loadingCheck?.sessionKey === 'vendredi_amidi' ? 'loading' : ''}`}
+                    onClick={() => !isArchivesView && !selectedWeekData && !loadingCheck && !isSessionFinished('vendredi_amidi') && student.planning?.vendredi?.amidi && handleCheckClick(student._id, 'vendredi_amidi')}
+                  >
+                    {loadingCheck?.studentId === student._id && loadingCheck?.sessionKey === 'vendredi_amidi' && <Loader2 size={12} className="check-spinner" />}
+                  </div>
+                </td>
+                <td className="td-session">
                   <div
                     className={`attendance-check ${!student.planning?.samedi?.matin ? 'disabled' : ''} ${isSessionFinished('samedi_matin') ? 'locked' : ''} ${isPresent(student, 'samedi_matin') ? 'present' : ''} ${loadingCheck?.studentId === student._id && loadingCheck?.sessionKey === 'samedi_matin' ? 'loading' : ''}`}
                     onClick={() => !isArchivesView && !selectedWeekData && !loadingCheck && !isSessionFinished('samedi_matin') && student.planning?.samedi?.matin && handleCheckClick(student._id, 'samedi_matin')}
@@ -911,7 +1045,7 @@ const AttendanceTable = ({
                     {loadingCheck?.studentId === student._id && loadingCheck?.sessionKey === 'samedi_matin' && <Loader2 size={12} className="check-spinner" />}
                   </div>
                 </td>
-                <td>
+                <td className="td-session">
                   <div
                     className={`attendance-check ${!student.planning?.samedi?.amidi ? 'disabled' : ''} ${isSessionFinished('samedi_amidi') ? 'locked' : ''} ${isPresent(student, 'samedi_amidi') ? 'present' : ''} ${loadingCheck?.studentId === student._id && loadingCheck?.sessionKey === 'samedi_amidi' ? 'loading' : ''}`}
                     onClick={() => !isArchivesView && !selectedWeekData && !loadingCheck && !isSessionFinished('samedi_amidi') && student.planning?.samedi?.amidi && handleCheckClick(student._id, 'samedi_amidi')}
@@ -919,7 +1053,7 @@ const AttendanceTable = ({
                     {loadingCheck?.studentId === student._id && loadingCheck?.sessionKey === 'samedi_amidi' && <Loader2 size={12} className="check-spinner" />}
                   </div>
                 </td>
-                <td>
+                <td className="td-session">
                   <div
                     className={`attendance-check ${!student.planning?.dimanche?.unique ? 'disabled' : ''} ${isSessionFinished('dimanche_unique') ? 'locked' : ''} ${isPresent(student, 'dimanche_unique') ? 'present' : ''} ${loadingCheck?.studentId === student._id && loadingCheck?.sessionKey === 'dimanche_unique' ? 'loading' : ''}`}
                     onClick={() => !isArchivesView && !selectedWeekData && !loadingCheck && !isSessionFinished('dimanche_unique') && student.planning?.dimanche?.unique && handleCheckClick(student._id, 'dimanche_unique')}
@@ -927,7 +1061,7 @@ const AttendanceTable = ({
                     {loadingCheck?.studentId === student._id && loadingCheck?.sessionKey === 'dimanche_unique' && <Loader2 size={12} className="check-spinner" />}
                   </div>
                 </td>
-                <td>
+                <td className="td-cycle">
                   <div className="cycle-tracker">
                     {(() => {
                       const maxS = isSundayOnly(student.planning) ? 5 : 8;
@@ -970,7 +1104,7 @@ const AttendanceTable = ({
                     })()}
                   </div>
                 </td>
-                <td>
+                <td className="td-payment">
                   <div className="payment-cell">
                     {(() => {
                       const maxS = isSundayOnly(student.planning) ? 5 : 8;
@@ -1037,7 +1171,7 @@ const AttendanceTable = ({
                     </select>
                   </div>
                 </td>
-                <td>
+                <td className="td-notes">
                   <input
                     type="text"
                     className="annotation-input"
@@ -1046,7 +1180,7 @@ const AttendanceTable = ({
                     onBlur={(e) => onUpdateNotes(student._id, e.target.value)}
                   />
                 </td>
-                <td>
+                <td className="td-actions">
                   <div className="action-btns">
                     <History size={18} className="icon-history" onClick={() => onViewHistory(student)} />
                     <Edit2 size={18} className="icon-edit" onClick={() => onEdit(student)} />

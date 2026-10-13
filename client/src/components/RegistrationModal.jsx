@@ -11,8 +11,11 @@ const RegistrationModal = ({ isOpen, onClose, onSubmit, initialData }) => {
     paymentStatus: 'Non Payer / لم يدفع بعد',
     status: 'Actif',
     planning: {
+      lundi: { matin: false, amidi: false },
       mardi: { matin: false },
       mercredi: { matin: false, amidi: false },
+      jeudi: { matin: false, amidi: false },
+      vendredi: { matin: false, amidi: false },
       samedi: { matin: false, amidi: false },
       dimanche: { unique: false }
     },
@@ -24,7 +27,19 @@ const RegistrationModal = ({ isOpen, onClose, onSubmit, initialData }) => {
 
   useEffect(() => {
     if (initialData) {
-      setFormData(initialData);
+      setFormData({
+        ...initialFormState,
+        ...initialData,
+        planning: {
+          lundi: { matin: false, amidi: false, ...(initialData.planning?.lundi || {}) },
+          mardi: { matin: false, ...(initialData.planning?.mardi || {}) },
+          mercredi: { matin: false, amidi: false, ...(initialData.planning?.mercredi || {}) },
+          jeudi: { matin: false, amidi: false, ...(initialData.planning?.jeudi || {}) },
+          vendredi: { matin: false, amidi: false, ...(initialData.planning?.vendredi || {}) },
+          samedi: { matin: false, amidi: false, ...(initialData.planning?.samedi || {}) },
+          dimanche: { unique: false, ...(initialData.planning?.dimanche || {}) }
+        }
+      });
     } else {
       setFormData(initialFormState);
     }
@@ -54,7 +69,10 @@ const RegistrationModal = ({ isOpen, onClose, onSubmit, initialData }) => {
       ...prev,
       planning: {
         ...prev.planning,
-        [day]: { ...prev.planning[day], [session]: !prev.planning[day][session] }
+        [day]: {
+          ...(prev.planning?.[day] || {}),
+          [session]: !prev.planning?.[day]?.[session]
+        }
       }
     }));
   };
@@ -196,9 +214,22 @@ const RegistrationModal = ({ isOpen, onClose, onSubmit, initialData }) => {
           <label className="planning-title">JOURS DE PRÉSENCE PRÉVUS (PLANNING)</label>
           <div className="planning-grid">
             <div className="planning-card">
+              <h4>LUNDI</h4>
+              <div className="checkbox-stack">
+                <label className="checkbox-label">
+                  <input type="checkbox" checked={!!formData.planning?.lundi?.matin} onChange={() => handlePlanningChange('lundi', 'matin')} />
+                  <span className="checkbox-custom"></span> Matin
+                </label>
+                <label className="checkbox-label">
+                  <input type="checkbox" checked={!!formData.planning?.lundi?.amidi} onChange={() => handlePlanningChange('lundi', 'amidi')} />
+                  <span className="checkbox-custom"></span> A.Midi
+                </label>
+              </div>
+            </div>
+            <div className="planning-card">
               <h4>MARDI</h4>
               <label className="checkbox-label">
-                <input type="checkbox" checked={formData.planning.mardi.matin} onChange={() => handlePlanningChange('mardi', 'matin')} />
+                <input type="checkbox" checked={!!formData.planning?.mardi?.matin} onChange={() => handlePlanningChange('mardi', 'matin')} />
                 <span className="checkbox-custom"></span> Matin
               </label>
             </div>
@@ -206,11 +237,37 @@ const RegistrationModal = ({ isOpen, onClose, onSubmit, initialData }) => {
               <h4>MERCREDI</h4>
               <div className="checkbox-stack">
                 <label className="checkbox-label">
-                  <input type="checkbox" checked={formData.planning.mercredi.matin} onChange={() => handlePlanningChange('mercredi', 'matin')} />
+                  <input type="checkbox" checked={!!formData.planning?.mercredi?.matin} onChange={() => handlePlanningChange('mercredi', 'matin')} />
                   <span className="checkbox-custom"></span> Matin
                 </label>
                 <label className="checkbox-label">
-                  <input type="checkbox" checked={formData.planning.mercredi.amidi} onChange={() => handlePlanningChange('mercredi', 'amidi')} />
+                  <input type="checkbox" checked={!!formData.planning?.mercredi?.amidi} onChange={() => handlePlanningChange('mercredi', 'amidi')} />
+                  <span className="checkbox-custom"></span> A.Midi
+                </label>
+              </div>
+            </div>
+            <div className="planning-card">
+              <h4>JEUDI</h4>
+              <div className="checkbox-stack">
+                <label className="checkbox-label">
+                  <input type="checkbox" checked={!!formData.planning?.jeudi?.matin} onChange={() => handlePlanningChange('jeudi', 'matin')} />
+                  <span className="checkbox-custom"></span> Matin
+                </label>
+                <label className="checkbox-label">
+                  <input type="checkbox" checked={!!formData.planning?.jeudi?.amidi} onChange={() => handlePlanningChange('jeudi', 'amidi')} />
+                  <span className="checkbox-custom"></span> A.Midi
+                </label>
+              </div>
+            </div>
+            <div className="planning-card">
+              <h4>VENDREDI</h4>
+              <div className="checkbox-stack">
+                <label className="checkbox-label">
+                  <input type="checkbox" checked={!!formData.planning?.vendredi?.matin} onChange={() => handlePlanningChange('vendredi', 'matin')} />
+                  <span className="checkbox-custom"></span> Matin
+                </label>
+                <label className="checkbox-label">
+                  <input type="checkbox" checked={!!formData.planning?.vendredi?.amidi} onChange={() => handlePlanningChange('vendredi', 'amidi')} />
                   <span className="checkbox-custom"></span> A.Midi
                 </label>
               </div>
@@ -219,11 +276,11 @@ const RegistrationModal = ({ isOpen, onClose, onSubmit, initialData }) => {
               <h4>SAMEDI</h4>
               <div className="checkbox-stack">
                 <label className="checkbox-label">
-                  <input type="checkbox" checked={formData.planning.samedi.matin} onChange={() => handlePlanningChange('samedi', 'matin')} />
+                  <input type="checkbox" checked={!!formData.planning?.samedi?.matin} onChange={() => handlePlanningChange('samedi', 'matin')} />
                   <span className="checkbox-custom"></span> Matin
                 </label>
                 <label className="checkbox-label">
-                  <input type="checkbox" checked={formData.planning.samedi.amidi} onChange={() => handlePlanningChange('samedi', 'amidi')} />
+                  <input type="checkbox" checked={!!formData.planning?.samedi?.amidi} onChange={() => handlePlanningChange('samedi', 'amidi')} />
                   <span className="checkbox-custom"></span> A.Midi
                 </label>
               </div>
@@ -231,7 +288,7 @@ const RegistrationModal = ({ isOpen, onClose, onSubmit, initialData }) => {
             <div className="planning-card">
               <h4>DIMANCHE</h4>
               <label className="checkbox-label">
-                <input type="checkbox" checked={formData.planning.dimanche.unique} onChange={() => handlePlanningChange('dimanche', 'unique')} />
+                <input type="checkbox" checked={!!formData.planning?.dimanche?.unique} onChange={() => handlePlanningChange('dimanche', 'unique')} />
                 <span className="checkbox-custom"></span> seule séance
               </label>
             </div>

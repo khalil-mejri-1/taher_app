@@ -9,8 +9,8 @@ import FinancePage from './components/FinancePage';
 import NotificationModal from './components/NotificationModal';
 import './index.css';
 
-// const BASE_URL = 'https://taher-app.vercel.app';
-const BASE_URL = 'http://localhost:5000';
+const BASE_URL = 'https://taher-app.vercel.app';
+// const BASE_URL = 'http://localhost:5000';
 const API_URL = `${BASE_URL}/api/students`;
 
 function App() {
@@ -159,9 +159,15 @@ function App() {
     const baseDate = new Date(week.startDate);
 
     const sessions = [
+      { key: 'lundi_matin', day: 'LUNDI', label: 'MATIN', offset: -1, dayKey: 'lundi', type: 'matin' },
+      { key: 'lundi_amidi', day: 'LUNDI', label: 'A.MIDI', offset: -1, dayKey: 'lundi', type: 'amidi' },
       { key: 'mardi_matin', day: 'MARDI', label: 'MATIN', offset: 0, dayKey: 'mardi', type: 'matin' },
       { key: 'mercredi_matin', day: 'MERCREDI', label: 'MATIN', offset: 1, dayKey: 'mercredi', type: 'matin' },
       { key: 'mercredi_amidi', day: 'MERCREDI', label: 'A.MIDI', offset: 1, dayKey: 'mercredi', type: 'amidi' },
+      { key: 'jeudi_matin', day: 'JEUDI', label: 'MATIN', offset: 2, dayKey: 'jeudi', type: 'matin' },
+      { key: 'jeudi_amidi', day: 'JEUDI', label: 'A.MIDI', offset: 2, dayKey: 'jeudi', type: 'amidi' },
+      { key: 'vendredi_matin', day: 'VENDREDI', label: 'MATIN', offset: 3, dayKey: 'vendredi', type: 'matin' },
+      { key: 'vendredi_amidi', day: 'VENDREDI', label: 'A.MIDI', offset: 3, dayKey: 'vendredi', type: 'amidi' },
       { key: 'samedi_matin', day: 'SAMEDI', label: 'MATIN', offset: 4, dayKey: 'samedi', type: 'matin' },
       { key: 'samedi_amidi', day: 'SAMEDI', label: 'A.MIDI', offset: 4, dayKey: 'samedi', type: 'amidi' },
       { key: 'dimanche_unique', day: 'DIMANCHE', label: 'UNIQUE', offset: 5, dayKey: 'dimanche', type: 'unique' },
@@ -224,8 +230,11 @@ function App() {
             
             .student-info { text-align: left; font-weight: 700; color: #0f172a; width: 250px; background: #fff; }
             
+            .lundi { background-color: #fdf2f8; }
             .mardi { background-color: #fff7ed; }
             .mercredi { background-color: #f0fdf4; }
+            .jeudi { background-color: #fefce8; }
+            .vendredi { background-color: #ecfeff; }
             .samedi { background-color: #eff6ff; }
             .dimanche { background-color: #faf5ff; }
             
@@ -236,8 +245,11 @@ function App() {
             @media print {
               body { padding: 0; }
               table { border-radius: 0; }
+              .lundi { background-color: #fdf2f8 !important; -webkit-print-color-adjust: exact; }
               .mardi { background-color: #fff7ed !important; -webkit-print-color-adjust: exact; }
               .mercredi { background-color: #f0fdf4 !important; -webkit-print-color-adjust: exact; }
+              .jeudi { background-color: #fefce8 !important; -webkit-print-color-adjust: exact; }
+              .vendredi { background-color: #ecfeff !important; -webkit-print-color-adjust: exact; }
               .samedi { background-color: #eff6ff !important; -webkit-print-color-adjust: exact; }
               .dimanche { background-color: #faf5ff !important; -webkit-print-color-adjust: exact; }
               .empty-cell { background-color: #f8fafc !important; -webkit-print-color-adjust: exact; }
@@ -318,8 +330,11 @@ function App() {
   const isSundayOnly = (p) => {
     if (!p) return false;
     return p.dimanche?.unique &&
+      !p.lundi?.matin && !p.lundi?.amidi &&
       !p.mardi?.matin &&
       !p.mercredi?.matin && !p.mercredi?.amidi &&
+      !p.jeudi?.matin && !p.jeudi?.amidi &&
+      !p.vendredi?.matin && !p.vendredi?.amidi &&
       !p.samedi?.matin && !p.samedi?.amidi;
   };
 
@@ -385,10 +400,16 @@ function App() {
       newDate.setUTCDate(newDate.getUTCDate() + daysToAdd);
       return newDate;
     };
-    if (sessionKey.startsWith('mardi')) return baseDate;
-    if (sessionKey.startsWith('mercredi')) return getWeekDay(baseDate, 1);
-    if (sessionKey.startsWith('samedi')) return getWeekDay(baseDate, 4);
-    if (sessionKey.startsWith('dimanche')) return getWeekDay(baseDate, 5);
+    const dayOfWeek = baseDate.getUTCDay();
+    const mardiDate = dayOfWeek === 1 ? getWeekDay(baseDate, 1) : baseDate;
+
+    if (sessionKey.startsWith('lundi')) return getWeekDay(mardiDate, -1);
+    if (sessionKey.startsWith('mardi')) return mardiDate;
+    if (sessionKey.startsWith('mercredi')) return getWeekDay(mardiDate, 1);
+    if (sessionKey.startsWith('jeudi')) return getWeekDay(mardiDate, 2);
+    if (sessionKey.startsWith('vendredi')) return getWeekDay(mardiDate, 3);
+    if (sessionKey.startsWith('samedi')) return getWeekDay(mardiDate, 4);
+    if (sessionKey.startsWith('dimanche')) return getWeekDay(mardiDate, 5);
     return baseDate;
   };
 

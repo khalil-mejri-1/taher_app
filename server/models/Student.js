@@ -10,8 +10,11 @@ const StudentSchema = new mongoose.Schema({
   status: { type: String, enum: ["Actif", "En attente"], default: "Actif" },
   isArchived: { type: Boolean, default: false },
   planning: {
+    lundi: { matin: Boolean, amidi: Boolean },
     mardi: { matin: Boolean },
     mercredi: { matin: Boolean, amidi: Boolean },
+    jeudi: { matin: Boolean, amidi: Boolean },
+    vendredi: { matin: Boolean, amidi: Boolean },
     samedi: { matin: Boolean, amidi: Boolean },
     dimanche: { unique: Boolean }
   },

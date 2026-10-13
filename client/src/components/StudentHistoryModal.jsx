@@ -8,8 +8,11 @@ const StudentHistoryModal = ({ student, isOpen, onClose, onToggleCompensated, on
   const isSundayOnly = (p) => {
     if (!p) return false;
     return p.dimanche?.unique &&
+      !p.lundi?.matin && !p.lundi?.amidi &&
       !p.mardi?.matin &&
       !p.mercredi?.matin && !p.mercredi?.amidi &&
+      !p.jeudi?.matin && !p.jeudi?.amidi &&
+      !p.vendredi?.matin && !p.vendredi?.amidi &&
       !p.samedi?.matin && !p.samedi?.amidi;
   };
 

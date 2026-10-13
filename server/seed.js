@@ -11,8 +11,11 @@ const StudentSchema = new mongoose.Schema({
   status: { type: String, default: "Actif" },
   isArchived: { type: Boolean, default: false },
   planning: {
+    lundi: { matin: Boolean, amidi: Boolean },
     mardi: { matin: Boolean },
     mercredi: { matin: Boolean, amidi: Boolean },
+    jeudi: { matin: Boolean, amidi: Boolean },
+    vendredi: { matin: Boolean, amidi: Boolean },
     samedi: { matin: Boolean, amidi: Boolean },
     dimanche: { unique: Boolean }
   },
@@ -32,8 +35,11 @@ const MONGODB_URI = process.env.MONGODB_URI;
 // Day abbreviation to planning field mapping
 const parseSchedule = (schedule) => {
   const planning = {
+    lundi:    { matin: false, amidi: false },
     mardi:    { matin: false },
     mercredi: { matin: false, amidi: false },
+    jeudi:    { matin: false, amidi: false },
+    vendredi: { matin: false, amidi: false },
     samedi:   { matin: false, amidi: false },
     dimanche: { unique: false }
   };
@@ -41,9 +47,15 @@ const parseSchedule = (schedule) => {
   const parts = schedule.split(' - ').map(s => s.trim());
   for (const part of parts) {
     switch (part) {
+      case 'mon_m': planning.lundi.matin = true; break;
+      case 'mon_a': planning.lundi.amidi = true; break;
       case 'tue_m': planning.mardi.matin = true; break;
       case 'wed_m': planning.mercredi.matin = true; break;
       case 'wed_a': planning.mercredi.amidi = true; break;
+      case 'thu_m': planning.jeudi.matin = true; break;
+      case 'thu_a': planning.jeudi.amidi = true; break;
+      case 'fri_m': planning.vendredi.matin = true; break;
+      case 'fri_a': planning.vendredi.amidi = true; break;
       case 'sat_m': planning.samedi.matin = true; break;
       case 'sat_a': planning.samedi.amidi = true; break;
       case 'sun_m': planning.dimanche.unique = true; break;
