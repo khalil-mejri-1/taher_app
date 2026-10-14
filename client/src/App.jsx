@@ -159,9 +159,8 @@ function App() {
     const baseDate = new Date(week.startDate);
 
     const sessions = [
-      { key: 'lundi_matin', day: 'LUNDI', label: 'MATIN', offset: -1, dayKey: 'lundi', type: 'matin' },
-      { key: 'lundi_amidi', day: 'LUNDI', label: 'A.MIDI', offset: -1, dayKey: 'lundi', type: 'amidi' },
       { key: 'mardi_matin', day: 'MARDI', label: 'MATIN', offset: 0, dayKey: 'mardi', type: 'matin' },
+      { key: 'mardi_amidi', day: 'MARDI', label: 'A.MIDI', offset: 0, dayKey: 'mardi', type: 'amidi' },
       { key: 'mercredi_matin', day: 'MERCREDI', label: 'MATIN', offset: 1, dayKey: 'mercredi', type: 'matin' },
       { key: 'mercredi_amidi', day: 'MERCREDI', label: 'A.MIDI', offset: 1, dayKey: 'mercredi', type: 'amidi' },
       { key: 'jeudi_matin', day: 'JEUDI', label: 'MATIN', offset: 2, dayKey: 'jeudi', type: 'matin' },
@@ -230,7 +229,6 @@ function App() {
             
             .student-info { text-align: left; font-weight: 700; color: #0f172a; width: 250px; background: #fff; }
             
-            .lundi { background-color: #fdf2f8; }
             .mardi { background-color: #fff7ed; }
             .mercredi { background-color: #f0fdf4; }
             .jeudi { background-color: #fefce8; }
@@ -245,7 +243,6 @@ function App() {
             @media print {
               body { padding: 0; }
               table { border-radius: 0; }
-              .lundi { background-color: #fdf2f8 !important; -webkit-print-color-adjust: exact; }
               .mardi { background-color: #fff7ed !important; -webkit-print-color-adjust: exact; }
               .mercredi { background-color: #f0fdf4 !important; -webkit-print-color-adjust: exact; }
               .jeudi { background-color: #fefce8 !important; -webkit-print-color-adjust: exact; }
@@ -330,8 +327,7 @@ function App() {
   const isSundayOnly = (p) => {
     if (!p) return false;
     return p.dimanche?.unique &&
-      !p.lundi?.matin && !p.lundi?.amidi &&
-      !p.mardi?.matin &&
+      !p.mardi?.matin && !p.mardi?.amidi &&
       !p.mercredi?.matin && !p.mercredi?.amidi &&
       !p.jeudi?.matin && !p.jeudi?.amidi &&
       !p.vendredi?.matin && !p.vendredi?.amidi &&
@@ -403,7 +399,6 @@ function App() {
     const dayOfWeek = baseDate.getUTCDay();
     const mardiDate = dayOfWeek === 1 ? getWeekDay(baseDate, 1) : baseDate;
 
-    if (sessionKey.startsWith('lundi')) return getWeekDay(mardiDate, -1);
     if (sessionKey.startsWith('mardi')) return mardiDate;
     if (sessionKey.startsWith('mercredi')) return getWeekDay(mardiDate, 1);
     if (sessionKey.startsWith('jeudi')) return getWeekDay(mardiDate, 2);
