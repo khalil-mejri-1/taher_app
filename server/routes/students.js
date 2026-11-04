@@ -6,6 +6,32 @@ const Student = require("../models/Student");
 router.get("/", async (req, res) => {
   try {
     const students = await Student.find();
+
+    // Auto-migrate students with existing totalMoneyPaid but empty payments
+    const bulkOps = [];
+    students.forEach(student => {
+      if ((student.totalMoneyPaid || 0) > 0 && (!student.payments || student.payments.length === 0)) {
+        const initialPayment = {
+          date: student.inscriptionDate || student.createdAt || new Date(),
+          amount: student.totalMoneyPaid,
+          type: student.paymentStatus && student.paymentStatus.includes('Partiel') ? "Paiement Partiel / خلاص جزئي" : "Frais d'inscription / تسجيل",
+          note: "Paiement initial enregistré",
+          month: (student.paidMonths && student.paidMonths.length > 0) ? student.paidMonths[0] : 1
+        };
+        student.payments = [initialPayment];
+        bulkOps.push({
+          updateOne: {
+            filter: { _id: student._id },
+            update: { $set: { payments: [initialPayment] } }
+          }
+        });
+      }
+    });
+
+    if (bulkOps.length > 0) {
+      Student.bulkWrite(bulkOps).catch(e => console.error("Auto-migration payments error:", e));
+    }
+
     res.json(students);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -137,6 +163,90 @@ router.post("/finish-session", async (req, res) => {
     res.json({ message: "Session update successful" });
   } catch (err) {
     res.status(500).json({ message: err.message });
+  }
+});
+
+// Add a payment transaction to a student
+router.post("/:id/payments", async (req, res) => {
+  try {
+    const { amount, date, type, note, month } = req.body;
+    const numAmount = Number(amount) || 0;
+    const paymentDate = date ? new Date(date) : new Date();
+
+    const student = await Student.findById(req.params.id);
+    if (!student) return res.status(404).json({ message: "Student not found" });
+
+    const newPayment = {
+      date: paymentDate,
+      amount: numAmount,
+      type: type || "Paiement Mensuel / خلاص شهري",
+      note: note || "",
+      month: month ? Number(month) : undefined
+    };
+
+    if (!student.payments) student.payments = [];
+    student.payments.push(newPayment);
+    student.totalMoneyPaid = (student.totalMoneyPaid || 0) + numAmount;
+
+    // Auto-update paidSessionsCount if appropriate
+    const maxSessions = (student.planning?.dimanche?.unique && !student.planning?.mardi?.matin) ? 5 : 8;
+    const sessionCost = (student.tarif || 80) / maxSessions;
+    if (sessionCost > 0) {
+      const addedSessions = Math.round(numAmount / sessionCost);
+      student.paidSessionsCount = (student.paidSessionsCount || 0) + addedSessions;
+    }
+
+    if (month && (!student.paidMonths || !student.paidMonths.includes(Number(month)))) {
+      student.paidMonths = [...(student.paidMonths || []), Number(month)];
+    }
+
+    // Auto-update paymentStatus
+    if ((student.paidSessionsCount || 0) >= (student.totalSessionsCount || 0)) {
+      student.paymentStatus = "Payer / تم الخلاص";
+    }
+
+    await student.save();
+    res.status(201).json(student);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+// Delete a payment transaction from a student
+router.delete("/:id/payments/:paymentId", async (req, res) => {
+  try {
+    const student = await Student.findById(req.params.id);
+    if (!student) return res.status(404).json({ message: "Student not found" });
+
+    const paymentIndex = student.payments.findIndex(p => p._id.toString() === req.params.paymentId);
+    if (paymentIndex === -1) {
+      return res.status(404).json({ message: "Payment not found" });
+    }
+
+    const removedPayment = student.payments[paymentIndex];
+    student.payments.splice(paymentIndex, 1);
+    student.totalMoneyPaid = Math.max(0, (student.totalMoneyPaid || 0) - (removedPayment.amount || 0));
+
+    // Deduct sessions
+    const maxSessions = (student.planning?.dimanche?.unique && !student.planning?.mardi?.matin) ? 5 : 8;
+    const sessionCost = (student.tarif || 80) / maxSessions;
+    if (sessionCost > 0 && removedPayment.amount) {
+      const removedSessions = Math.round(removedPayment.amount / sessionCost);
+      student.paidSessionsCount = Math.max(0, (student.paidSessionsCount || 0) - removedSessions);
+    }
+
+    if (removedPayment.month && student.paidMonths) {
+      student.paidMonths = student.paidMonths.filter(m => m !== removedPayment.month);
+    }
+
+    if ((student.totalSessionsCount || 0) > (student.paidSessionsCount || 0)) {
+      student.paymentStatus = "Non Payer / لم يدفع بعد";
+    }
+
+    await student.save();
+    res.json(student);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
   }
 });
 

@@ -7,6 +7,7 @@ import RegistrationModal from './components/RegistrationModal';
 import StudentHistoryModal from './components/StudentHistoryModal';
 import FinancePage from './components/FinancePage';
 import NotificationModal from './components/NotificationModal';
+import MobileBottomNav from './components/MobileBottomNav';
 import './index.css';
 
 const BASE_URL = 'https://taher-app.vercel.app';
@@ -20,6 +21,7 @@ function App() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingStudent, setEditingStudent] = useState(null);
   const [activeView, setActiveView] = useState('dashboard'); // 'dashboard' or 'archives'
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [currentWeekDate, setCurrentWeekDate] = useState(new Date('2026-04-07')); // Default to a Tuesday
   const [selectedWeekData, setSelectedWeekData] = useState(null);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
@@ -367,6 +369,18 @@ function App() {
         submissionData.paidMonths = [];
       }
 
+      if (!editingStudent && submissionData.totalMoneyPaid > 0) {
+        submissionData.payments = [
+          {
+            date: submissionData.inscriptionDate ? new Date(submissionData.inscriptionDate) : new Date(),
+            amount: submissionData.totalMoneyPaid,
+            type: submissionData.paymentStatus.includes("Partiel") ? "Paiement Partiel / خلاص جزئي" : "Frais d'inscription / تسجيل",
+            note: `Paiement initial (${submissionData.name})`,
+            month: 1
+          }
+        ];
+      }
+
       if (editingStudent) {
         await axios.put(`${API_URL}/${editingStudent._id}`, submissionData);
       } else {
@@ -565,6 +579,14 @@ function App() {
       finalPaidCount += maxSessions;
       updates.paidSessionsCount = finalPaidCount;
 
+      const newPayment = {
+        date: new Date(),
+        amount: amount,
+        type: "Paiement Partiel / خلاص جزئي",
+        note: `Paiement partiel (${student.name})`
+      };
+      updates.payments = [...(student.payments || []), newPayment];
+
     } else if (newStatus === "Non Payer / لم يدفع بعد") {
       // Sync with Historique Modal: Remove current month from paidMonths
       const currentMonth = Math.floor((student.totalSessionsCount || 0) / (maxSessions + 0.01)) + 1;
@@ -587,6 +609,15 @@ function App() {
       } else {
         finalMoneyPaid += tarif;
         finalPaidCount += maxSessions;
+        const monthToPay = Math.ceil(finalPaidCount / maxSessions);
+        const newPayment = {
+          date: new Date(),
+          amount: tarif,
+          type: "Paiement Mensuel / خلاص شهري",
+          note: `Mois ${monthToPay} (${student.name})`,
+          month: monthToPay
+        };
+        updates.payments = [...(student.payments || []), newPayment];
       }
 
       updates.totalMoneyPaid = finalMoneyPaid;
@@ -783,15 +814,29 @@ function App() {
 
     const maxSessions = isSundayOnly(student.planning) ? 5 : 8;
     const currentPaidMonths = student.paidMonths || [];
+    const tarif = student.tarif || 80;
     let newPaidMonths;
     let paidSessionsChange = 0;
+    let newPayments = [...(student.payments || [])];
+    let newTotalMoney = student.totalMoneyPaid || 0;
 
     if (currentPaidMonths.includes(monthNumber)) {
       newPaidMonths = currentPaidMonths.filter(m => m !== monthNumber);
       paidSessionsChange = -maxSessions;
+      newTotalMoney = Math.max(0, newTotalMoney - tarif);
+      const pIdx = newPayments.findIndex(p => p.month === monthNumber);
+      if (pIdx !== -1) newPayments.splice(pIdx, 1);
     } else {
       newPaidMonths = [...currentPaidMonths, monthNumber];
       paidSessionsChange = maxSessions;
+      newTotalMoney += tarif;
+      newPayments.push({
+        date: new Date(),
+        amount: tarif,
+        type: "Paiement Mensuel / خلاص شهري",
+        note: `Mois ${monthNumber} (${student.name})`,
+        month: monthNumber
+      });
     }
 
     const newPaidSessionsCount = Math.max(0, (student.paidSessionsCount || 0) + paidSessionsChange);
@@ -820,7 +865,9 @@ function App() {
       const updates = {
         paidMonths: newPaidMonths,
         paidSessionsCount: newPaidSessionsCount,
-        paymentStatus: newPaymentStatus
+        paymentStatus: newPaymentStatus,
+        totalMoneyPaid: newTotalMoney,
+        payments: newPayments
       };
 
       await axios.put(`${API_URL}/${studentId}`, updates);
@@ -830,6 +877,114 @@ function App() {
       setSelectedStudentHistory(prev => ({ ...prev, ...updates }));
     } catch (err) {
       console.error('Error toggling monthly payment:', err);
+    }
+  };
+
+  const handleAddManualPayment = async (studentId, paymentData) => {
+    try {
+      const student = students.find(s => s._id === studentId);
+      if (!student) return;
+
+      const numAmount = Number(paymentData.amount) || 0;
+      const paymentDate = paymentData.date ? new Date(paymentData.date) : new Date();
+
+      const newTx = {
+        date: paymentDate,
+        amount: numAmount,
+        type: paymentData.type || "Paiement Mensuel / خلاص شهري",
+        note: paymentData.note || "",
+        month: paymentData.month ? Number(paymentData.month) : undefined
+      };
+
+      const newPayments = [...(student.payments || []), newTx];
+      const newTotalMoney = (student.totalMoneyPaid || 0) + numAmount;
+      const maxSessions = isSundayOnly(student.planning) ? 5 : 8;
+      const sessionCost = (student.tarif || 80) / maxSessions;
+      let newPaidSessions = student.paidSessionsCount || 0;
+      if (sessionCost > 0) {
+        newPaidSessions += Math.round(numAmount / sessionCost);
+      }
+
+      let newPaidMonths = student.paidMonths || [];
+      if (paymentData.month && !newPaidMonths.includes(Number(paymentData.month))) {
+        newPaidMonths = [...newPaidMonths, Number(paymentData.month)];
+      }
+
+      let newPaymentStatus = student.paymentStatus;
+      if (newPaidSessions >= (student.totalSessionsCount || 0)) {
+        newPaymentStatus = "Payer / تم الخلاص";
+      }
+
+      const updates = {
+        payments: newPayments,
+        totalMoneyPaid: newTotalMoney,
+        paidSessionsCount: newPaidSessions,
+        paidMonths: newPaidMonths,
+        paymentStatus: newPaymentStatus
+      };
+
+      await axios.put(`${API_URL}/${studentId}`, updates);
+      setStudents(prev => prev.map(s => s._id === studentId ? { ...s, ...updates } : s));
+      customAlert("Succès / نجاح", "Paiement enregistré avec succès !");
+    } catch (err) {
+      console.error('Error adding payment:', err);
+      customAlert("Erreur / خطأ", "Impossible d'enregistrer le paiement.");
+    }
+  };
+
+  const handleDeletePayment = async (studentId, paymentIdentifier) => {
+    const confirmed = await customConfirm("Supprimer le paiement / حذف الخلاص", "Voulez-vous vraiment supprimer cette opération de خلاص ؟");
+    if (!confirmed) return;
+
+    try {
+      const student = students.find(s => s._id === studentId);
+      if (!student || !student.payments) return;
+
+      const paymentList = [...student.payments];
+      let removedPayment;
+      const idx = paymentList.findIndex(p => (p._id === paymentIdentifier || p.id === paymentIdentifier));
+      if (idx !== -1) {
+        removedPayment = paymentList.splice(idx, 1)[0];
+      } else if (typeof paymentIdentifier === 'number') {
+        removedPayment = paymentList.splice(paymentIdentifier, 1)[0];
+      }
+
+      if (!removedPayment) return;
+
+      const removedAmount = Number(removedPayment.amount) || 0;
+      const newTotalMoney = Math.max(0, (student.totalMoneyPaid || 0) - removedAmount);
+
+      const maxSessions = isSundayOnly(student.planning) ? 5 : 8;
+      const sessionCost = (student.tarif || 80) / maxSessions;
+      let newPaidSessions = student.paidSessionsCount || 0;
+      if (sessionCost > 0) {
+        newPaidSessions = Math.max(0, newPaidSessions - Math.round(removedAmount / sessionCost));
+      }
+
+      let newPaidMonths = student.paidMonths || [];
+      if (removedPayment.month) {
+        newPaidMonths = newPaidMonths.filter(m => m !== Number(removedPayment.month));
+      }
+
+      let newPaymentStatus = student.paymentStatus;
+      if ((student.totalSessionsCount || 0) > newPaidSessions) {
+        newPaymentStatus = "Non Payer / لم يدفع بعد";
+      }
+
+      const updates = {
+        payments: paymentList,
+        totalMoneyPaid: newTotalMoney,
+        paidSessionsCount: newPaidSessions,
+        paidMonths: newPaidMonths,
+        paymentStatus: newPaymentStatus
+      };
+
+      await axios.put(`${API_URL}/${studentId}`, updates);
+      setStudents(prev => prev.map(s => s._id === studentId ? { ...s, ...updates } : s));
+      customAlert("Succès / نجاح", "Paiement supprimé avec succès.");
+    } catch (err) {
+      console.error('Error deleting payment:', err);
+      customAlert("Erreur / خطأ", "Impossible de supprimer le paiement.");
     }
   };
 
@@ -920,12 +1075,28 @@ function App() {
 
   return (
     <div className="app-container">
-      <Sidebar activeView={activeView} onViewChange={setActiveView} />
+      <Sidebar
+        activeView={activeView}
+        onViewChange={setActiveView}
+        isOpen={isMobileMenuOpen}
+        onClose={() => setIsMobileMenuOpen(false)}
+      />
       <main className="main-content">
-        <Navbar onAddStudent={handleOpenModal} onResetSessions={handleResetSessions} />
+        <Navbar
+          onAddStudent={handleOpenModal}
+          onResetSessions={handleResetSessions}
+          onToggleMenu={() => setIsMobileMenuOpen(prev => !prev)}
+          activeView={activeView}
+        />
         <div className="content-body">
           {activeView === 'finances' ? (
-            <FinancePage students={students} />
+            <FinancePage
+              students={students}
+              onAddPayment={handleAddManualPayment}
+              onDeletePayment={handleDeletePayment}
+              customAlert={customAlert}
+              customConfirm={customConfirm}
+            />
           ) : (
             <AttendanceTable
               students={filteredStudents}
@@ -1001,6 +1172,13 @@ function App() {
         inputValue={notification.inputValue}
         inputType={notification.inputType}
         onConfirm={notification.onConfirm}
+      />
+
+      <MobileBottomNav
+        activeView={activeView}
+        onViewChange={setActiveView}
+        onAddStudent={handleOpenModal}
+        onToggleMenu={() => setIsMobileMenuOpen(prev => !prev)}
       />
     </div>
   );

@@ -1,8 +1,8 @@
 import React from 'react';
-import { LayoutDashboard, Archive, CircleDollarSign, LogOut, Users, Calendar } from 'lucide-react';
+import { LayoutDashboard, Archive, CircleDollarSign, LogOut, Users, Calendar, X } from 'lucide-react';
 import './Sidebar.css';
 
-const Sidebar = ({ activeView, onViewChange }) => {
+const Sidebar = ({ activeView, onViewChange, isOpen, onClose }) => {
   const menuItems = [
     { id: 'dashboard', icon: <LayoutDashboard size={20} />, label: 'Dashboard Principal' },
     { id: 'archives', icon: <Archive size={20} />, label: 'Archives' },
@@ -10,49 +10,61 @@ const Sidebar = ({ activeView, onViewChange }) => {
   ];
 
   return (
-    <div className="sidebar">
-      <div className="logo-container">
-        <div className="logo-icon">
-          <Calendar size={28} color="white" />
-        </div>
-        <div className="logo-text">
-          <h1>2C Paton </h1>
-        </div>
-      </div>
-
-      <nav className="nav-menu">
-        {menuItems.map((item) => (
-          <div
-            key={item.id}
-            className={`nav-item ${activeView === item.id ? 'active' : ''}`}
-            onClick={() => onViewChange(item.id)}
-          >
-            <span className="icon">{item.icon}</span>
-            <span className="label">{item.label}</span>
+    <>
+      {isOpen && <div className="sidebar-backdrop" onClick={onClose} />}
+      <aside className={`sidebar ${isOpen ? 'mobile-open' : ''}`}>
+        <div className="logo-container">
+          <div className="logo-icon">
+            <Calendar size={28} color="white" />
           </div>
-        ))}
-      </nav>
-
-      <div className="sidebar-footer">
-        <div className="logout-btn">
-          <LogOut size={20} color="#ff6b6b" />
-          <span>Quitter la session</span>
+          <div className="logo-text">
+            <h1>2C Paton</h1>
+            <p>Atelier de couture & formation</p>
+          </div>
+          {onClose && (
+            <button className="sidebar-close-btn" onClick={onClose} aria-label="Fermer le menu">
+              <X size={20} />
+            </button>
+          )}
         </div>
 
-        <div className="profile-card">
-          <div className="profile-icon">
-            <Users size={24} color="white" />
+        <nav className="nav-menu">
+          {menuItems.map((item) => (
+            <div
+              key={item.id}
+              className={`nav-item ${activeView === item.id ? 'active' : ''}`}
+              onClick={() => {
+                onViewChange(item.id);
+                if (onClose) onClose();
+              }}
+            >
+              <span className="icon">{item.icon}</span>
+              <span className="label">{item.label}</span>
+            </div>
+          ))}
+        </nav>
+
+        <div className="sidebar-footer">
+          <div className="logout-btn">
+            <LogOut size={20} color="#ff6b6b" />
+            <span>Quitter la session</span>
           </div>
-          <div className="profile-info">
-            <h4>Admin Principal</h4>
-            <div className="status">
-              <span className="status-dot"></span>
-              <span>Statut: Actif</span>
+
+          <div className="profile-card">
+            <div className="profile-icon">
+              <Users size={24} color="white" />
+            </div>
+            <div className="profile-info">
+              <h4>Admin Principal</h4>
+              <div className="status">
+                <span className="status-dot"></span>
+                <span>Statut: Actif</span>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-    </div>
+      </aside>
+    </>
   );
 };
 

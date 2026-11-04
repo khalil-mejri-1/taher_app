@@ -652,18 +652,18 @@ const AttendanceTable = ({
         </div>
       </div>
 
-      <div className="filters-bar" style={{ display: 'flex', gap: '15px', marginBottom: '15px', padding: '0 10px' }}>
+      <div className="filters-bar">
         <input 
           type="text" 
+          className="search-input"
           placeholder="Rechercher par nom ou numéro de téléphone..." 
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          style={{ flex: 1, padding: '10px 15px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.9rem', outline: 'none' }}
         />
         <select 
+          className="sort-select"
           value={sortBy} 
           onChange={(e) => setSortBy(e.target.value)}
-          style={{ padding: '10px 15px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.9rem', outline: 'none', background: 'white' }}
         >
           <option value="default">Tri par défaut</option>
           <option value="alphabetical">De A à Z (Alphabétique)</option>
@@ -695,6 +695,10 @@ const AttendanceTable = ({
             {f.label}
           </button>
         ))}
+      </div>
+
+      <div className="table-scroll-hint">
+        <span>⟵ Glisser pour voir toutes les séances ⟶</span>
       </div>
 
       <div className="table-wrapper">

@@ -138,26 +138,78 @@
   opacity: 0.8;
 }
 
+/* Filters Bar */
+.filters-bar {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 1rem;
+}
+
+.search-input {
+  flex: 1;
+  padding: 0.7rem 1.1rem;
+  border-radius: 12px;
+  border: 1.5px solid #e2e8f0;
+  font-size: 0.9rem;
+  outline: none;
+  font-family: inherit;
+  background: white;
+  color: #1e293b;
+  transition: all 0.2s ease;
+}
+
+.search-input:focus {
+  border-color: #d35400;
+  box-shadow: 0 0 0 3px rgba(211, 84, 0, 0.1);
+}
+
+.sort-select {
+  padding: 0.7rem 1.1rem;
+  border-radius: 12px;
+  border: 1.5px solid #e2e8f0;
+  font-size: 0.88rem;
+  font-weight: 600;
+  outline: none;
+  font-family: inherit;
+  background: white;
+  color: #1e293b;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.sort-select:focus {
+  border-color: #d35400;
+}
+
 .session-filters-bar {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
   align-items: center;
   gap: 6px;
-  margin-bottom: 1.25rem;
-  padding: 0 2px;
+  margin-bottom: 0.85rem;
+  padding: 2px 2px 8px 2px;
+  scrollbar-width: none;
+}
+
+.session-filters-bar::-webkit-scrollbar {
+  display: none;
 }
 
 .session-filter-btn {
-  padding: 5px 10px;
-  border-radius: 8px;
-  font-size: 0.72rem;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.74rem;
   font-weight: 700;
   cursor: pointer;
-  border: 1px solid #e2e8f0;
+  border: 1.5px solid #e2e8f0;
   background: white;
   color: #475569;
   transition: all 0.15s ease;
   white-space: nowrap;
+  flex-shrink: 0;
+  touch-action: manipulation;
 }
 
 .session-filter-btn:hover {
@@ -177,6 +229,24 @@
   background: #059669;
   border-color: #059669;
   box-shadow: 0 2px 6px rgba(5, 150, 105, 0.25);
+}
+
+.table-scroll-hint {
+  display: none;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 0.65rem;
+}
+
+.table-scroll-hint span {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #64748b;
+  background: #f1f5f9;
+  padding: 4px 14px;
+  border-radius: 20px;
+  border: 1px solid #e2e8f0;
+  letter-spacing: 0.2px;
 }
 
 .table-wrapper {
@@ -1299,4 +1369,235 @@ tbody td {
 /* --- Row Payer Background --- */
 tbody tr.row-payer {
   background: #f0fdf4 !important; /* Tailwind green-50 for a soft green background */
+}
+
+/* ========================================================
+   RESPONSIVE DESIGN (TABLETS & MOBILE PHONES)
+   ======================================================== */
+
+@media (max-width: 1024px) {
+  .attendance-container {
+    padding: 1.15rem;
+    border-radius: 16px;
+    margin-top: 0.5rem;
+  }
+
+  .table-header-controls {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    margin-bottom: 1rem;
+  }
+
+  .table-title h2 {
+    font-size: 1rem;
+  }
+
+  .table-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: flex-start;
+  }
+
+  .date-picker {
+    flex: 1;
+    min-width: 220px;
+  }
+
+  .table-scroll-hint {
+    display: flex;
+  }
+
+  /* Sticky student info column slightly narrower on tablets */
+  .th-student-info,
+  .td-student-info {
+    width: 165px;
+    min-width: 165px;
+    max-width: 165px;
+  }
+}
+
+@media (max-width: 768px) {
+  .attendance-container {
+    padding: 0.85rem 0.65rem;
+    border-radius: 14px;
+    margin-top: 0.25rem;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+  }
+
+  .table-title h2 {
+    font-size: 0.92rem;
+    line-height: 1.3;
+  }
+
+  .table-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .table-actions .btn-history {
+    grid-column: 1 / 2;
+    padding: 0.65rem 0.75rem;
+    font-size: 0.78rem;
+    justify-content: center;
+  }
+
+  .table-actions .btn-new-week {
+    grid-column: 2 / 3;
+    padding: 0.65rem 0.75rem;
+    font-size: 0.78rem;
+    text-align: center;
+  }
+
+  .table-actions .date-picker {
+    grid-column: 1 / -1;
+    display: flex;
+    justify-content: space-between;
+    padding: 0.55rem 0.85rem;
+  }
+
+  .filters-bar {
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 0.85rem;
+  }
+
+  .search-input {
+    width: 100%;
+    font-size: 0.85rem;
+    padding: 0.65rem 0.85rem;
+  }
+
+  .sort-select {
+    width: 100%;
+    font-size: 0.82rem;
+    padding: 0.65rem 0.85rem;
+  }
+
+  /* Compact sticky student info column on mobile */
+  .th-student-info,
+  .td-student-info {
+    width: 140px;
+    min-width: 140px;
+    max-width: 140px;
+    padding: 6px 6px !important;
+  }
+
+  .student-cell {
+    gap: 6px !important;
+  }
+
+  .student-avatar {
+    width: 30px !important;
+    height: 30px !important;
+    font-size: 0.72rem !important;
+    border-radius: 8px !important;
+  }
+
+  .student-details strong {
+    font-size: 0.76rem !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 88px;
+    display: block;
+  }
+
+  .student-details span {
+    font-size: 0.62rem !important;
+    white-space: nowrap;
+  }
+
+  /* Session Columns */
+  .th-session,
+  .td-session {
+    width: 50px !important;
+    min-width: 50px !important;
+    padding: 4px 2px !important;
+  }
+
+  .attendance-check {
+    width: 25px !important;
+    height: 25px !important;
+    border-radius: 7px !important;
+  }
+
+  .session-header {
+    gap: 2px !important;
+  }
+
+  .session-label-btn {
+    font-size: 0.62rem !important;
+    padding: 1px 3px !important;
+  }
+
+  .session-count-label {
+    font-size: 0.58rem !important;
+  }
+
+  .btn-term {
+    width: 24px !important;
+    height: 24px !important;
+  }
+
+  /* Action Buttons */
+  .action-btns {
+    gap: 8px;
+  }
+
+  .action-btns svg {
+    width: 18px;
+    height: 18px;
+    padding: 2px;
+  }
+
+  /* Session modal (Appel rapide) on mobile */
+  .session-students-modal {
+    width: 95% !important;
+    max-height: 88vh !important;
+    padding: 1.25rem 1rem !important;
+    border-radius: 20px !important;
+  }
+
+  .session-students-header {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+  }
+
+  .session-students-header > div:last-child {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    justify-content: space-between !important;
+  }
+
+  .session-student-item {
+    padding: 0.75rem 0.5rem !important;
+    gap: 8px !important;
+  }
+
+  .session-student-attendance-actions {
+    display: flex !important;
+    gap: 6px !important;
+  }
+
+  .btn-attendance {
+    padding: 6px 10px !important;
+    font-size: 0.75rem !important;
+  }
+
+  /* History Modal on mobile */
+  .history-modal {
+    width: 95% !important;
+    max-height: 88vh !important;
+    padding: 1.25rem 1rem !important;
+    border-radius: 20px !important;
+  }
+
+  .weeks-grid {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
 }

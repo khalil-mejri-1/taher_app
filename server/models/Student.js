@@ -39,7 +39,16 @@ const StudentSchema = new mongoose.Schema({
   },
   paidMonths: { type: [Number], default: [] },
   historyOverrides: { type: Object, default: {} },
-  totalMoneyPaid: { type: Number, default: 0 }
+  totalMoneyPaid: { type: Number, default: 0 },
+  payments: [
+    {
+      date: { type: Date, default: Date.now },
+      amount: { type: Number, required: true },
+      type: { type: String, default: "Paiement" },
+      note: { type: String, default: "" },
+      month: { type: Number }
+    }
+  ]
 }, { timestamps: true });
 
 module.exports = mongoose.model("Student", StudentSchema);
