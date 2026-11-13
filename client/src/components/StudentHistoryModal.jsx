@@ -27,28 +27,64 @@ const StudentHistoryModal = ({ student, isOpen, onClose, onToggleCompensated, on
     return `${day} - ${type}`;
   };
 
-  // Number of expected sessions per cycle
-  const maxS = isSundayOnly(student.planning) ? 5 : 8;
+  // Default expected sessions per cycle based on current planning
+  const defaultMaxS = isSundayOnly(student.planning) ? 5 : 8;
+  const history = student.cycleHistory || [];
+  const paidSessionsCount = Number(student.paidSessionsCount || 0);
+  const paidMonthsList = student.paidMonths || [];
 
+  // Build 24 months dynamically respecting the cycle size of each session
   const months = [];
-  let numMonths = 24; // Standardized to 2 years of history
+  let currentHistoryIndex = 0;
+  const totalHistoryLength = history.length;
 
-  for (let i = 0; i < numMonths; i++) {
-    const monthSessions = [];
-    for (let j = 0; j < maxS; j++) {
-      const hIdx = i * maxS + j;
-      const sess = student.cycleHistory?.[hIdx];
-      if (sess) monthSessions.push(sess);
-      else monthSessions.push(null);
+  for (let m = 1; m <= 24; m++) {
+    let monthCycleSize = defaultMaxS;
+    if (currentHistoryIndex < totalHistoryLength) {
+      const nextSession = history[currentHistoryIndex];
+      if (nextSession?.session === 'dimanche_unique') {
+        monthCycleSize = 5;
+      } else if (nextSession?.session && nextSession.session !== 'manual_add') {
+        monthCycleSize = 8;
+      }
     }
-    months.push({ number: i + 1, sessions: monthSessions });
+
+    const monthSessions = [];
+
+    for (let j = 0; j < monthCycleSize; j++) {
+      const hIdx = currentHistoryIndex;
+      if (hIdx < totalHistoryLength) {
+        const sess = history[hIdx];
+        monthSessions.push({
+          ...sess,
+          historyIndex: hIdx,
+          isPaid: hIdx < paidSessionsCount,
+          hasData: true
+        });
+      } else {
+        monthSessions.push({
+          historyIndex: hIdx,
+          isPaid: hIdx < paidSessionsCount,
+          hasData: false
+        });
+      }
+      currentHistoryIndex++;
+    }
+
+    const isPaid = paidMonthsList.includes(m) || 
+      (monthSessions.some(s => s.hasData) && currentHistoryIndex <= paidSessionsCount);
+
+    months.push({
+      number: m,
+      cycleSize: monthCycleSize,
+      sessions: monthSessions,
+      isPaid
+    });
   }
 
-  const initials = student.name ? student.name.split(' ').map(n => n[0]).join('').toUpperCase() : '?';
+  const maxTableColumns = months.some(m => m.cycleSize === 8) ? 8 : (defaultMaxS === 8 ? 8 : 5);
 
-  const isMonthPaid = (monthNum) => {
-    return student.paidMonths?.includes(monthNum);
-  };
+  const initials = student.name ? student.name.split(' ').map(n => n[0]).join('').toUpperCase() : '?';
 
   const infoDateToDisplay = student.inscriptionDate ? new Date(student.inscriptionDate).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }) : '--';
 
@@ -59,17 +95,10 @@ const StudentHistoryModal = ({ student, isOpen, onClose, onToggleCompensated, on
           <div className="student-info-main">
             <div className="student-details-text">
               <h2>{student.name}</h2>
-              <br />
-              <div className="student-meta-grid">
-                <div className="meta-item">
-                </div>
-                <div className="meta-item">
-                </div>
-              </div>
             </div>
           </div>
-          <button className="history-close-btn" onClick={onClose}>
-            <X size={24} />
+          <button className="history-close-btn" onClick={onClose} title="Fermer">
+            <X size={22} />
           </button>
         </div>
 
@@ -106,27 +135,36 @@ const StudentHistoryModal = ({ student, isOpen, onClose, onToggleCompensated, on
           <table className="history-table">
             <thead>
               <tr>
-                <th>MOIS</th>
-                {[...Array(maxS)].map((_, i) => (
-                  <th key={i}>S{i + 1}</th>
+                <th className="cycle-th">MOIS</th>
+                {[...Array(maxTableColumns)].map((_, i) => (
+                  <th key={i} className="session-th">S{i + 1}</th>
                 ))}
-                <th>Action</th>
+                <th className="action-th">Action</th>
               </tr>
             </thead>
             <tbody>
               {months.map((month) => {
-                const isPaid = isMonthPaid(month.number);
+                const isPaid = month.isPaid;
                 return (
                   <tr key={month.number} className={isPaid ? 'paid-row' : 'unpaid-row'}>
                     <td className="cycle-number-cell">
                       <span className="cycle-num">{month.number}</span>
                     </td>
-                    {month.sessions.map((session, idx) => {
-                      const historyIndex = (month.number - 1) * maxS + idx;
+                    {[...Array(maxTableColumns)].map((_, idx) => {
+                      if (idx >= month.cycleSize) {
+                        return (
+                          <td key={idx} className="disabled-session-cell">
+                            <span className="disabled-dash">—</span>
+                          </td>
+                        );
+                      }
+
+                      const session = month.sessions[idx];
+                      const historyIndex = session.historyIndex;
                       const displayType = student.historyOverrides?.[historyIndex] || session?.type;
                       const hasOverride = !!student.historyOverrides?.[historyIndex];
                       const isDeleted = displayType === 'deleted';
-                      const shouldShowAsFilled = (session || hasOverride) && !isDeleted;
+                      const shouldShowAsFilled = (session?.hasData || hasOverride) && !isDeleted;
 
                       return (
                         <td key={idx}>
@@ -138,6 +176,7 @@ const StudentHistoryModal = ({ student, isOpen, onClose, onToggleCompensated, on
                                     className={`status-dot ${displayType}`}
                                     onClick={() => onToggleCompensated(student._id, historyIndex, session?.type || 'absent')}
                                     style={{ cursor: 'pointer' }}
+                                    title={session.isPaid ? "Séance Payée / حصة خالصة" : "Séance Non Payée / حصة غير خالصة"}
                                   ></div>
                                   <button 
                                     className="delete-session-btn"
@@ -174,7 +213,7 @@ const StudentHistoryModal = ({ student, isOpen, onClose, onToggleCompensated, on
                     <td className="action-cell">
                       <button
                         className={`payment-toggle-btn ${isPaid ? 'paid' : 'unpaid'}`}
-                        onClick={() => onToggleMonthlyPayment(student._id, month.number)}
+                        onClick={() => onToggleMonthlyPayment(student._id, month.number, month.cycleSize)}
                       >
                         {isPaid ? 'PAYÉ' : 'PAYER'}
                       </button>

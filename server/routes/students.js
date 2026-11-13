@@ -123,23 +123,29 @@ router.post("/finish-session", async (req, res) => {
       } else {
         // Normal Finish
         // Check if already in history for this session/date to avoid duplicates
-        const exists = newHistory.some(h => 
-          h.session === sessionKey && new Date(h.date).toISOString().split('T')[0] === new Date(sessionDate).toISOString().split('T')[0]
+        const dateStr = new Date(sessionDate).toISOString().split('T')[0];
+        const existingIdx = newHistory.findIndex(h => 
+          h.date && new Date(h.date).toISOString().split('T')[0] === dateStr &&
+          (h.session === sessionKey || h.session?.split('_')[0] === day)
+        );
+
+        const isPresent = student.attendance?.some(a => 
+          a.session === sessionKey && a.present && new Date(a.date).toISOString().split('T')[0] === dateStr
         );
         
-        if (!exists) {
-          // Check current attendance record
-          const isPresent = student.attendance?.some(a => 
-            a.session === sessionKey && a.present && new Date(a.date).toISOString().split('T')[0] === new Date(sessionDate).toISOString().split('T')[0]
-          );
-
+        if (existingIdx !== -1) {
+          // Update the existing entry for this day
+          newHistory[existingIdx].session = sessionKey;
+          if (isPresent) {
+            newHistory[existingIdx].type = 'present';
+          }
+        } else {
           newHistory.push({
             session: sessionKey,
             date: sessionDate,
             type: isPresent ? 'present' : 'absent'
           });
           newTotalCount = newTotalCount + 1;
-          // Note: we don't increment newCompleted here because the checkbox in the UI already did it
         }
       }
 

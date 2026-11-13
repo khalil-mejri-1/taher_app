@@ -10,8 +10,8 @@ import NotificationModal from './components/NotificationModal';
 import MobileBottomNav from './components/MobileBottomNav';
 import './index.css';
 
-const BASE_URL = 'https://taher-app.vercel.app';
-// const BASE_URL = 'http://localhost:5000';
+// const BASE_URL = 'https://taher-app.vercel.app';
+const BASE_URL = 'http://localhost:5000';
 const API_URL = `${BASE_URL}/api/students`;
 
 function App() {
@@ -336,64 +336,6 @@ function App() {
       !p.samedi?.matin && !p.samedi?.amidi;
   };
 
-  const handleSaveStudent = async (formData) => {
-    try {
-      const submissionData = { ...formData };
-      const tarif = parseFloat(submissionData.tarif) || 80;
-
-      // Handle direct archive registration
-      if (submissionData.status === 'Archives') {
-        submissionData.isArchived = true;
-        submissionData.status = 'Actif'; // Reset status to Actif but keep archived flag
-      } else {
-        submissionData.isArchived = false;
-      }
-
-      const maxSessions = isSundayOnly(submissionData.planning) ? 5 : 8;
-
-      if (submissionData.paymentStatus === "Payer Partiellement / دفع جزئي") {
-        if (!editingStudent || submissionData.paidSessionsCount < maxSessions) {
-          submissionData.paidSessionsCount = maxSessions;
-        }
-      } else if (submissionData.paymentStatus === "Payer / تم الخلاص") {
-        if (!editingStudent || submissionData.paidSessionsCount < maxSessions) {
-          submissionData.paidSessionsCount = maxSessions;
-          submissionData.totalMoneyPaid = tarif;
-          if (!submissionData.paidMonths?.includes(1)) {
-            submissionData.paidMonths = [1];
-          }
-        }
-      } else if (submissionData.paymentStatus === "Non Payer / لم يدفع بعد") {
-        submissionData.paidSessionsCount = 0;
-        submissionData.totalMoneyPaid = 0;
-        submissionData.paidMonths = [];
-      }
-
-      if (!editingStudent && submissionData.totalMoneyPaid > 0) {
-        submissionData.payments = [
-          {
-            date: submissionData.inscriptionDate ? new Date(submissionData.inscriptionDate) : new Date(),
-            amount: submissionData.totalMoneyPaid,
-            type: submissionData.paymentStatus.includes("Partiel") ? "Paiement Partiel / خلاص جزئي" : "Frais d'inscription / تسجيل",
-            note: `Paiement initial (${submissionData.name})`,
-            month: 1
-          }
-        ];
-      }
-
-      if (editingStudent) {
-        await axios.put(`${API_URL}/${editingStudent._id}`, submissionData);
-      } else {
-        await axios.post(API_URL, submissionData);
-      }
-      setIsModalOpen(false);
-      setEditingStudent(null);
-      fetchStudents();
-    } catch (err) {
-      console.error('Error saving student:', err);
-    }
-  };
-
   const isSameDay = (d1, d2) => {
     if (!d1 || !d2) return false;
     const date1 = new Date(d1);
@@ -420,6 +362,173 @@ function App() {
     if (sessionKey.startsWith('samedi')) return getWeekDay(mardiDate, 4);
     if (sessionKey.startsWith('dimanche')) return getWeekDay(mardiDate, 5);
     return baseDate;
+  };
+
+  const handleSaveStudent = async (formData) => {
+    try {
+      const submissionData = { ...formData };
+      const tarif = parseFloat(submissionData.tarif) || 80;
+
+      // Handle direct archive registration
+      if (submissionData.status === 'Archives') {
+        submissionData.isArchived = true;
+        submissionData.status = 'Actif'; // Reset status to Actif but keep archived flag
+      } else {
+        submissionData.isArchived = false;
+      }
+
+      const maxSessions = isSundayOnly(submissionData.planning) ? 5 : 8;
+
+      if (editingStudent) {
+        // --- 1. PRESERVE EXISTING PAYMENT & SESSION INTEGRITY ---
+        const userPaidSessions = formData.paidSessionsCount !== undefined 
+          ? Number(formData.paidSessionsCount) 
+          : (editingStudent.paidSessionsCount || 0);
+
+        const userTotalSessions = formData.totalSessionsCount !== undefined 
+          ? Number(formData.totalSessionsCount) 
+          : (editingStudent.totalSessionsCount || 0);
+
+        submissionData.paidSessionsCount = Math.max(0, userPaidSessions);
+        submissionData.totalSessionsCount = Math.max(0, userTotalSessions);
+        submissionData.totalMoneyPaid = Number(formData.totalMoneyPaid !== undefined ? formData.totalMoneyPaid : (editingStudent.totalMoneyPaid || 0));
+        submissionData.payments = editingStudent.payments || [];
+        submissionData.cycleHistory = editingStudent.cycleHistory || [];
+        submissionData.historyOverrides = editingStudent.historyOverrides || {};
+
+        let currentPaidMonths = [...(editingStudent.paidMonths || [])];
+
+        // If user changed status to Payer, ensure at least 1 month is credited
+        if (submissionData.paymentStatus === "Payer / تم الخلاص" && editingStudent.paymentStatus !== "Payer / تم الخلاص") {
+          if (submissionData.paidSessionsCount < maxSessions) {
+            submissionData.paidSessionsCount = maxSessions;
+            submissionData.totalMoneyPaid = Math.max(submissionData.totalMoneyPaid, tarif);
+          }
+        }
+
+        // Keep paidMonths in sync with paidSessionsCount
+        const expectedPaidMonths = Math.ceil(submissionData.paidSessionsCount / maxSessions);
+        if (expectedPaidMonths > 0) {
+          if (currentPaidMonths.length === 0) {
+            currentPaidMonths = Array.from({ length: expectedPaidMonths }, (_, i) => i + 1);
+          } else {
+            const oldMaxSessions = isSundayOnly(editingStudent.planning) ? 5 : 8;
+            if (oldMaxSessions !== maxSessions) {
+              currentPaidMonths = Array.from({ length: expectedPaidMonths }, (_, i) => i + 1);
+            }
+          }
+        }
+        submissionData.paidMonths = currentPaidMonths;
+
+        // Auto-reconcile paymentStatus accurately
+        if (submissionData.totalSessionsCount > submissionData.paidSessionsCount) {
+          submissionData.paymentStatus = "Non Payer / لم يدفع بعد";
+        } else if (submissionData.paidSessionsCount > 0 && submissionData.paidSessionsCount >= submissionData.totalSessionsCount) {
+          if (!submissionData.paymentStatus?.includes("Partiel")) {
+            submissionData.paymentStatus = "Payer / تم الخلاص";
+          }
+        }
+
+        // --- 2. MIGRATE CURRENT WEEK SESSIONS IF PLANNING DAYS CHANGED ---
+        const oldPlanning = editingStudent.planning || {};
+        const newPlanning = submissionData.planning || {};
+
+        const getActiveSessions = (p) => {
+          const res = [];
+          if (p?.mardi?.matin) res.push('mardi_matin');
+          if (p?.mardi?.amidi) res.push('mardi_amidi');
+          if (p?.mercredi?.matin) res.push('mercredi_matin');
+          if (p?.mercredi?.amidi) res.push('mercredi_amidi');
+          if (p?.jeudi?.matin) res.push('jeudi_matin');
+          if (p?.jeudi?.amidi) res.push('jeudi_amidi');
+          if (p?.vendredi?.matin) res.push('vendredi_matin');
+          if (p?.vendredi?.amidi) res.push('vendredi_amidi');
+          if (p?.samedi?.matin) res.push('samedi_matin');
+          if (p?.samedi?.amidi) res.push('samedi_amidi');
+          if (p?.dimanche?.unique) res.push('dimanche_unique');
+          return res;
+        };
+
+        const oldSessions = getActiveSessions(oldPlanning);
+        const newSessions = getActiveSessions(newPlanning);
+        const removedSessions = oldSessions.filter(s => !newSessions.includes(s));
+        const addedSessions = newSessions.filter(s => !oldSessions.includes(s));
+
+        if (removedSessions.length > 0 && addedSessions.length > 0) {
+          const currentWeekStart = new Date(currentWeekDate);
+          const currentWeekEnd = new Date(currentWeekStart);
+          currentWeekEnd.setDate(currentWeekEnd.getDate() + 7);
+
+          // 2a. Migrate in student.attendance (current week pending checkmarks)
+          let newAttendance = [...(editingStudent.attendance || [])];
+          removedSessions.forEach((remKey, idx) => {
+            const addKey = addedSessions[idx] || addedSessions[0];
+            const newDate = getSessionDate(addKey);
+
+            newAttendance = newAttendance.map(a => {
+              const aDate = new Date(a.date);
+              if (a.session === remKey && aDate >= currentWeekStart && aDate <= currentWeekEnd) {
+                return { ...a, session: addKey, date: newDate };
+              }
+              return a;
+            });
+          });
+          submissionData.attendance = newAttendance;
+
+          // 2b. Migrate in cycleHistory if this week was already finished for the old day
+          let newHistory = [...(submissionData.cycleHistory || [])];
+          removedSessions.forEach((remKey, idx) => {
+            const addKey = addedSessions[idx] || addedSessions[0];
+            const newDate = getSessionDate(addKey);
+
+            newHistory = newHistory.map(h => {
+              const hDate = new Date(h.date);
+              if (h.session === remKey && hDate >= currentWeekStart && hDate <= currentWeekEnd) {
+                return { ...h, session: addKey, date: newDate };
+              }
+              return h;
+            });
+          });
+          submissionData.cycleHistory = newHistory;
+        }
+
+        await axios.put(`${API_URL}/${editingStudent._id}`, submissionData);
+      } else {
+        // --- 3. CREATING A BRAND NEW STUDENT ---
+        if (submissionData.paymentStatus === "Payer Partiellement / دفع جزئي") {
+          submissionData.paidSessionsCount = maxSessions;
+          submissionData.paidMonths = [1];
+        } else if (submissionData.paymentStatus === "Payer / تم الخلاص") {
+          submissionData.paidSessionsCount = maxSessions;
+          submissionData.totalMoneyPaid = tarif;
+          submissionData.paidMonths = [1];
+        } else if (submissionData.paymentStatus === "Non Payer / لم يدفع بعد") {
+          submissionData.paidSessionsCount = 0;
+          submissionData.totalMoneyPaid = 0;
+          submissionData.paidMonths = [];
+        }
+
+        if (submissionData.totalMoneyPaid > 0) {
+          submissionData.payments = [
+            {
+              date: submissionData.inscriptionDate ? new Date(submissionData.inscriptionDate) : new Date(),
+              amount: submissionData.totalMoneyPaid,
+              type: submissionData.paymentStatus.includes("Partiel") ? "Paiement Partiel / خلاص جزئي" : "Frais d'inscription / تسجيل",
+              note: `Paiement initial (${submissionData.name})`,
+              month: 1
+            }
+          ];
+        }
+
+        await axios.post(API_URL, submissionData);
+      }
+
+      setIsModalOpen(false);
+      setEditingStudent(null);
+      fetchStudents();
+    } catch (err) {
+      console.error('Error saving student:', err);
+    }
   };
 
   const handleFinishSession = async (sessionKey, isUndo = false, onProgress) => {
@@ -808,11 +917,11 @@ function App() {
     }
   };
 
-  const handleToggleMonthlyPayment = async (studentId, monthNumber) => {
+  const handleToggleMonthlyPayment = async (studentId, monthNumber, monthCycleSize) => {
     const student = students.find(s => s._id === studentId);
     if (!student) return;
 
-    const maxSessions = isSundayOnly(student.planning) ? 5 : 8;
+    const maxSessions = monthCycleSize || (isSundayOnly(student.planning) ? 5 : 8);
     const currentPaidMonths = student.paidMonths || [];
     const tarif = student.tarif || 80;
     let newPaidMonths;
@@ -1068,6 +1177,9 @@ function App() {
     return true;
   });
 
+  const registeredStudentsCount = students.filter(s => !s.isArchived).length;
+  const archivedStudentsCount = students.filter(s => s.isArchived).length;
+
   const handleOpenModal = () => {
     setEditingStudent(null);
     setIsModalOpen(true);
@@ -1087,6 +1199,9 @@ function App() {
           onResetSessions={handleResetSessions}
           onToggleMenu={() => setIsMobileMenuOpen(prev => !prev)}
           activeView={activeView}
+          registeredStudentsCount={registeredStudentsCount}
+          archivedStudentsCount={archivedStudentsCount}
+          isLoading={isLoading}
         />
         <div className="content-body">
           {activeView === 'finances' ? (

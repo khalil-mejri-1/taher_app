@@ -100,6 +100,7 @@ const AttendanceTable = ({
       
       // Update sTemp with accurate count for use in other parts of the component (e.g. print sheet)
       sTemp.totalSessionsCount = effectiveTotalCount;
+      sTemp.originalPaymentStatus = s.paymentStatus;
 
       // Dynamic rule: If there are unpaid sessions but status says "Payer", switch to "Non Payer" visually
       const owesSessionsCount = Math.max(0, effectiveTotalCount - Number(sTemp.paidSessionsCount || 0));
@@ -1159,7 +1160,18 @@ const AttendanceTable = ({
                 <td className="td-actions">
                   <div className="action-btns">
                     <History size={18} className="icon-history" onClick={() => onViewHistory(student)} />
-                    <Edit2 size={18} className="icon-edit" onClick={() => onEdit(student)} />
+                    <Edit2 
+                      size={18} 
+                      className="icon-edit" 
+                      onClick={() => {
+                        const rawStudent = students.find(s => s._id === student._id) || student;
+                        onEdit({
+                          ...rawStudent,
+                          totalSessionsCount: student.totalSessionsCount,
+                          paidSessionsCount: student.paidSessionsCount
+                        });
+                      }} 
+                    />
                     {isArchivesView ? (
                       <RotateCcw size={18} className="icon-unarchive" onClick={() => onUnarchive(student._id)} title="Désarchiver" />
                     ) : (
