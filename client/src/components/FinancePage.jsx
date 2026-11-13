@@ -18,7 +18,8 @@ import {
   Award,
   Sparkles,
   ArrowUpRight,
-  X
+  X,
+  Loader2
 } from 'lucide-react';
 import './FinancePage.css';
 
@@ -62,6 +63,7 @@ const FinancePage = ({
   const [paymentMonthNumber, setPaymentMonthNumber] = useState(1);
   const [paymentNote, setPaymentNote] = useState('');
   const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
+  const [deletingTxId, setDeletingTxId] = useState(null);
 
   // 1. Extract and normalize all payment transactions across students
   const allTransactions = useMemo(() => {
@@ -211,8 +213,14 @@ const FinancePage = ({
 
   // Delete payment
   const handleDeleteTransaction = async (tx) => {
+    if (deletingTxId) return;
     if (onDeletePayment) {
-      await onDeletePayment(tx.studentId, tx.rawId);
+      setDeletingTxId(tx.id);
+      try {
+        await onDeletePayment(tx.studentId, tx.rawId);
+      } finally {
+        setDeletingTxId(null);
+      }
     }
   };
 
@@ -730,11 +738,12 @@ const FinancePage = ({
                             </td>
                             <td className="cell-tx-action">
                               <button
-                                className="tx-delete-action-btn"
+                                className={`tx-delete-action-btn ${deletingTxId === tx.id ? 'btn-is-loading' : ''}`}
                                 onClick={() => handleDeleteTransaction(tx)}
+                                disabled={deletingTxId === tx.id}
                                 title="حذف عملية الخلاص هذه"
                               >
-                                <Trash2 size={16} />
+                                {deletingTxId === tx.id ? <Loader2 size={15} className="spin-loader" /> : <Trash2 size={16} />}
                               </button>
                             </td>
                           </tr>

@@ -49,6 +49,9 @@ const AttendanceTable = ({
   const [pendingChanges, setPendingChanges] = useState({}); // { studentId: { sessionKey: boolean } }
   const [isSavingBatch, setIsSavingBatch] = useState(false);
   const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0 });
+  const [isCreatingNewWeek, setIsCreatingNewWeek] = useState(false);
+  const [deletingWeekId, setDeletingWeekId] = useState(null);
+  const [loadingRowAction, setLoadingRowAction] = useState(null);
 
   const [sessionFilter, setSessionFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -600,22 +603,27 @@ const AttendanceTable = ({
   };
 
   const handleNewWeekClick = async () => {
+    if (isCreatingNewWeek) return;
     const confirmed = await customConfirm("Nouvelle Semaine", "Voulez-vous enregistrer cette semaine et passer à la suivante ? Toutes les coches de présence seront réinitialisées.");
     if (confirmed) {
-      const success = await onNewWeek(finishedSessions);
-      if (success) {
-        setFinishedSessions([]);
-        customAlert("Succès", "Nouvelle semaine démarrée !");
+      setIsCreatingNewWeek(true);
+      try {
+        const success = await onNewWeek(finishedSessions);
+        if (success) {
+          setFinishedSessions([]);
+          customAlert("Succès", "Nouvelle semaine démarrée !");
+        }
+      } finally {
+        setIsCreatingNewWeek(false);
       }
     }
   };
-
 
   const renderTerminalButtonContent = (sessionKey) => {
     if (loadingSession === sessionKey) {
       return (
         <>
-          <Loader2 size={11} className="spin" />
+          <Loader2 size={11} className="spin-loader" />
           <span>{isSavingBatch ? `${batchProgress.current}/${batchProgress.total}` : '...'}</span>
         </>
       );
@@ -647,7 +655,20 @@ const AttendanceTable = ({
                 <label>DATE DE LA SEMAINE:</label>
                 <input type="date" value={formatDateForInput(currentWeekDate)} onChange={handleDatePickerChange} />
               </div>
-              <button className="btn-new-week" onClick={handleNewWeekClick}>Nouvelle Semaine</button>
+              <button 
+                className={`btn-new-week ${isCreatingNewWeek ? 'btn-is-loading' : ''}`} 
+                onClick={handleNewWeekClick}
+                disabled={isCreatingNewWeek}
+              >
+                {isCreatingNewWeek ? (
+                  <span className="btn-loading-flex">
+                    <Loader2 size={16} className="spin-loader" />
+                    <span>Création en cours...</span>
+                  </span>
+                ) : (
+                  'Nouvelle Semaine'
+                )}
+              </button>
             </>
           )}
         </div>
@@ -1140,7 +1161,16 @@ const AttendanceTable = ({
                     })()}
                     <select
                       value={student.paymentStatus}
-                      onChange={(e) => onUpdatePayment(student._id, e.target.value)}
+                      disabled={loadingRowAction === `${student._id}_payment`}
+                      onChange={async (e) => {
+                        const val = e.target.value;
+                        setLoadingRowAction(`${student._id}_payment`);
+                        try {
+                          await onUpdatePayment(student._id, val);
+                        } finally {
+                          setLoadingRowAction(null);
+                        }
+                      }}
                     >
                       <option value="Non Payer / لم يدفع بعد">NON PAYER / لم يدفع بعد</option>
                       <option value="Payer / تم الخلاص">PAYER / تم الخلاص</option>
@@ -1173,11 +1203,67 @@ const AttendanceTable = ({
                       }} 
                     />
                     {isArchivesView ? (
-                      <RotateCcw size={18} className="icon-unarchive" onClick={() => onUnarchive(student._id)} title="Désarchiver" />
+                      loadingRowAction === `${student._id}_unarchive` ? (
+                        <span className="icon-btn-loading" title="Désarchivage...">
+                          <Loader2 size={18} className="spin-loader" style={{ color: '#10b981' }} />
+                        </span>
+                      ) : (
+                        <RotateCcw 
+                          size={18} 
+                          className={`icon-unarchive ${loadingRowAction ? 'disabled-icon' : ''}`} 
+                          onClick={async () => {
+                            if (loadingRowAction) return;
+                            setLoadingRowAction(`${student._id}_unarchive`);
+                            try {
+                              await onUnarchive(student._id);
+                            } finally {
+                              setLoadingRowAction(null);
+                            }
+                          }} 
+                          title="Désarchiver" 
+                        />
+                      )
                     ) : (
-                      <Archive size={18} className="icon-archive" onClick={() => onArchive(student._id)} title="Archiver" />
+                      loadingRowAction === `${student._id}_archive` ? (
+                        <span className="icon-btn-loading" title="Archivage...">
+                          <Loader2 size={18} className="spin-loader" style={{ color: '#64748b' }} />
+                        </span>
+                      ) : (
+                        <Archive 
+                          size={18} 
+                          className={`icon-archive ${loadingRowAction ? 'disabled-icon' : ''}`} 
+                          onClick={async () => {
+                            if (loadingRowAction) return;
+                            setLoadingRowAction(`${student._id}_archive`);
+                            try {
+                              await onArchive(student._id);
+                            } finally {
+                              setLoadingRowAction(null);
+                            }
+                          }} 
+                          title="Archiver" 
+                        />
+                      )
                     )}
-                    <Trash2 size={18} className="icon-delete" onClick={() => onDelete(student._id)} />
+                    {loadingRowAction === `${student._id}_delete` ? (
+                      <span className="icon-btn-loading" title="Suppression...">
+                        <Loader2 size={18} className="spin-loader" style={{ color: '#ef4444' }} />
+                      </span>
+                    ) : (
+                      <Trash2 
+                        size={18} 
+                        className={`icon-delete ${loadingRowAction ? 'disabled-icon' : ''}`} 
+                        onClick={async () => {
+                          if (loadingRowAction) return;
+                          setLoadingRowAction(`${student._id}_delete`);
+                          try {
+                            await onDelete(student._id);
+                          } finally {
+                            setLoadingRowAction(null);
+                          }
+                        }} 
+                      />
+                    )}
                   </div>
                 </td>
               </tr>
@@ -1241,15 +1327,28 @@ const AttendanceTable = ({
                         <FileJson size={16} />
                       </button>
                       <button 
-                        className="btn-delete-week" 
+                        className={`btn-delete-week ${deletingWeekId === week._id ? 'btn-is-loading' : ''}`}
+                        disabled={deletingWeekId === week._id}
                         onClick={async (e) => { 
                           e.stopPropagation(); 
+                          if (deletingWeekId) return;
                           const confirmed = await customConfirm("Supprimer", "Voulez-vous vraiment supprimer cet historique ?");
-                          if (confirmed) onDeleteWeek(week._id);
+                          if (confirmed) {
+                            setDeletingWeekId(week._id);
+                            try {
+                              await onDeleteWeek(week._id);
+                            } finally {
+                              setDeletingWeekId(null);
+                            }
+                          }
                         }}
                         title="Supprimer"
                       >
-                        <Trash2 size={16} />
+                        {deletingWeekId === week._id ? (
+                          <Loader2 size={16} className="spin-loader" />
+                        ) : (
+                          <Trash2 size={16} />
+                        )}
                       </button>
                     </div>
                   </div>
@@ -1279,12 +1378,21 @@ const AttendanceTable = ({
                   🖨 Appel Rapide
                 </button>
                 <button
-                  className={`btn-term-modal ${isSessionFinished(sessionModal.sessionKey) ? 'finished' : ''}`}
+                  className={`btn-term-modal ${isSessionFinished(sessionModal.sessionKey) ? 'finished' : ''} ${loadingSession === sessionModal.sessionKey ? 'btn-is-loading' : ''}`}
                   onClick={() => handleFinish(sessionModal.sessionKey)}
                   disabled={selectedWeekData || !!loadingSession}
                 >
-                  {loadingSession === sessionModal.sessionKey ? <Loader2 size={14} className="spin" /> : <CheckCircle size={14} />}
-                  {isSessionFinished(sessionModal.sessionKey) ? 'CLÔTURÉ' : 'TERMINER LA SÉANCE'}
+                  {loadingSession === sessionModal.sessionKey ? (
+                    <span className="btn-loading-flex">
+                      <Loader2 size={14} className="spin-loader" />
+                      <span>Patientez...</span>
+                    </span>
+                  ) : (
+                    <>
+                      <CheckCircle size={14} />
+                      <span>{isSessionFinished(sessionModal.sessionKey) ? 'CLÔTURÉ' : 'TERMINER LA SÉANCE'}</span>
+                    </>
+                  )}
                 </button>
                 <button className="close-btn" onClick={() => setSessionModal(null)}>×</button>
               </div>

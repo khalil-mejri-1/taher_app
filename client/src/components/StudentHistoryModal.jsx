@@ -1,8 +1,12 @@
 import React, { useState } from 'react';
-import { X, Calendar, Phone, Image as ImageIcon, Trash2 } from 'lucide-react';
+import { X, Calendar, Phone, Image as ImageIcon, Trash2, Loader2 } from 'lucide-react';
 import './StudentHistoryModal.css';
 
 const StudentHistoryModal = ({ student, isOpen, onClose, onToggleCompensated, onToggleMonthlyPayment, onDeleteSession }) => {
+  const [loadingMonth, setLoadingMonth] = useState(null);
+  const [loadingDeleteIndex, setLoadingDeleteIndex] = useState(null);
+  const [loadingDotIndex, setLoadingDotIndex] = useState(null);
+
   if (!isOpen) return null;
 
   const isSundayOnly = (p) => {
@@ -166,27 +170,51 @@ const StudentHistoryModal = ({ student, isOpen, onClose, onToggleCompensated, on
                       const isDeleted = displayType === 'deleted';
                       const shouldShowAsFilled = (session?.hasData || hasOverride) && !isDeleted;
 
+                      const isDotLoading = loadingDotIndex === historyIndex;
+                      const isDeleteLoading = loadingDeleteIndex === historyIndex;
+
                       return (
                         <td key={idx}>
                           <div className={`status-dot-container ${shouldShowAsFilled ? 'has-data' : ''}`}>
                             {shouldShowAsFilled ? (
                               <div className="dot-wrapper">
                                 <div className="dot-interactive-wrapper">
-                                  <div
-                                    className={`status-dot ${displayType}`}
-                                    onClick={() => onToggleCompensated(student._id, historyIndex, session?.type || 'absent')}
-                                    style={{ cursor: 'pointer' }}
-                                    title={session.isPaid ? "Séance Payée / حصة خالصة" : "Séance Non Payée / حصة غير خالصة"}
-                                  ></div>
+                                  {isDotLoading ? (
+                                    <div className="status-dot-loading" title="Enregistrement...">
+                                      <Loader2 size={12} className="spin-loader" />
+                                    </div>
+                                  ) : (
+                                    <div
+                                      className={`status-dot ${displayType}`}
+                                      onClick={async () => {
+                                        if (loadingDotIndex !== null || loadingMonth !== null || loadingDeleteIndex !== null) return;
+                                        setLoadingDotIndex(historyIndex);
+                                        try {
+                                          await onToggleCompensated(student._id, historyIndex, session?.type || 'absent');
+                                        } finally {
+                                          setLoadingDotIndex(null);
+                                        }
+                                      }}
+                                      style={{ cursor: 'pointer' }}
+                                      title={session.isPaid ? "Séance Payée / حصة خالصة" : "Séance Non Payée / حصة غير خالصة"}
+                                    ></div>
+                                  )}
                                   <button 
-                                    className="delete-session-btn"
-                                    onClick={(e) => {
+                                    className={`delete-session-btn ${isDeleteLoading ? 'btn-is-loading' : ''}`}
+                                    disabled={loadingDeleteIndex !== null || loadingMonth !== null || loadingDotIndex !== null}
+                                    onClick={async (e) => {
                                       e.stopPropagation();
-                                      onDeleteSession(student._id, historyIndex);
+                                      if (loadingDeleteIndex !== null || loadingMonth !== null || loadingDotIndex !== null) return;
+                                      setLoadingDeleteIndex(historyIndex);
+                                      try {
+                                        await onDeleteSession(student._id, historyIndex);
+                                      } finally {
+                                        setLoadingDeleteIndex(null);
+                                      }
                                     }}
                                     title="Supprimer la session"
                                   >
-                                    <Trash2 size={10} />
+                                    {isDeleteLoading ? <Loader2 size={10} className="spin-loader" /> : <Trash2 size={10} />}
                                   </button>
                                 </div>
                                 <div className="session-detail-container">
@@ -199,12 +227,26 @@ const StudentHistoryModal = ({ student, isOpen, onClose, onToggleCompensated, on
                                 </div>
                               </div>
                             ) : (
-                              <div 
-                                className="status-dot empty" 
-                                onClick={() => onToggleCompensated(student._id, historyIndex, 'empty-trigger')}
-                                style={{ cursor: 'pointer' }}
-                                title="Récupérer cette session"
-                              ></div>
+                              isDotLoading ? (
+                                <div className="status-dot-loading" title="Enregistrement...">
+                                  <Loader2 size={12} className="spin-loader" />
+                                </div>
+                              ) : (
+                                <div 
+                                  className="status-dot empty" 
+                                  onClick={async () => {
+                                    if (loadingDotIndex !== null || loadingMonth !== null || loadingDeleteIndex !== null) return;
+                                    setLoadingDotIndex(historyIndex);
+                                    try {
+                                      await onToggleCompensated(student._id, historyIndex, 'empty-trigger');
+                                    } finally {
+                                      setLoadingDotIndex(null);
+                                    }
+                                  }}
+                                  style={{ cursor: 'pointer' }}
+                                  title="Récupérer cette session"
+                                ></div>
+                              )
                             )}
                           </div>
                         </td>
@@ -212,10 +254,26 @@ const StudentHistoryModal = ({ student, isOpen, onClose, onToggleCompensated, on
                     })}
                     <td className="action-cell">
                       <button
-                        className={`payment-toggle-btn ${isPaid ? 'paid' : 'unpaid'}`}
-                        onClick={() => onToggleMonthlyPayment(student._id, month.number, month.cycleSize)}
+                        className={`payment-toggle-btn ${isPaid ? 'paid' : 'unpaid'} ${loadingMonth === month.number ? 'btn-is-loading' : ''}`}
+                        disabled={loadingMonth !== null || loadingDeleteIndex !== null || loadingDotIndex !== null}
+                        onClick={async () => {
+                          if (loadingMonth !== null || loadingDeleteIndex !== null || loadingDotIndex !== null) return;
+                          setLoadingMonth(month.number);
+                          try {
+                            await onToggleMonthlyPayment(student._id, month.number, month.cycleSize);
+                          } finally {
+                            setLoadingMonth(null);
+                          }
+                        }}
                       >
-                        {isPaid ? 'PAYÉ' : 'PAYER'}
+                        {loadingMonth === month.number ? (
+                          <span className="btn-loading-flex">
+                            <Loader2 size={12} className="spin-loader" />
+                            <span>...</span>
+                          </span>
+                        ) : (
+                          isPaid ? 'PAYÉ' : 'PAYER'
+                        )}
                       </button>
                     </td>
                   </tr>

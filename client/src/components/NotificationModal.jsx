@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AlertCircle, CheckCircle, HelpCircle, X } from 'lucide-react';
+import { AlertCircle, CheckCircle, HelpCircle, X, Loader2 } from 'lucide-react';
 import './NotificationModal.css';
 
 const NotificationModal = ({ 
@@ -14,22 +14,32 @@ const NotificationModal = ({
   inputType = 'text'
 }) => {
   const [value, setValue] = useState(inputValue);
+  const [isConfirming, setIsConfirming] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
       setValue(inputValue);
+      setIsConfirming(false);
     }
   }, [isOpen, inputValue]);
 
   if (!isOpen) return null;
 
-  const handleConfirm = () => {
-    if (type === 'prompt') {
-      onConfirm(value);
-    } else {
-      onConfirm();
+  const handleConfirm = async () => {
+    if (isConfirming) return;
+    setIsConfirming(true);
+    try {
+      if (type === 'prompt') {
+        await onConfirm(value);
+      } else {
+        await onConfirm();
+      }
+      onClose();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsConfirming(false);
     }
-    onClose();
   };
 
   const getIcon = () => {
@@ -64,10 +74,21 @@ const NotificationModal = ({
 
         <div className="modal-footer">
           {type !== 'alert' && (
-            <button className="btn-cancel" onClick={onClose}>Annuler</button>
+            <button className="btn-cancel" onClick={onClose} disabled={isConfirming}>Annuler</button>
           )}
-          <button className="btn-confirm" onClick={handleConfirm}>
-            {type === 'confirm' || type === 'prompt' ? 'Confirmer' : 'OK'}
+          <button 
+            className={`btn-confirm ${isConfirming ? 'btn-is-loading' : ''}`} 
+            onClick={handleConfirm}
+            disabled={isConfirming}
+          >
+            {isConfirming ? (
+              <span className="btn-loading-flex">
+                <Loader2 size={16} className="spin-loader" />
+                <span>Patientez...</span>
+              </span>
+            ) : (
+              type === 'confirm' || type === 'prompt' ? 'Confirmer' : 'OK'
+            )}
           </button>
         </div>
       </div>

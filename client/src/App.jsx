@@ -10,8 +10,8 @@ import NotificationModal from './components/NotificationModal';
 import MobileBottomNav from './components/MobileBottomNav';
 import './index.css';
 
-// const BASE_URL = 'https://taher-app.vercel.app';
-const BASE_URL = 'http://localhost:5000';
+const BASE_URL = 'https://taher-app.vercel.app';
+// const BASE_URL = 'http://localhost:5000';
 const API_URL = `${BASE_URL}/api/students`;
 
 function App() {
@@ -1166,9 +1166,34 @@ function App() {
     }
   };
 
-  const handleEditStudent = (student) => {
+  const handleEditStudent = async (student) => {
     setEditingStudent(student);
     setIsModalOpen(true);
+    if (!student.idCardImage && student._id) {
+      try {
+        const { data } = await axios.get(`${API_URL}/${student._id}`);
+        if (data && data.idCardImage) {
+          setEditingStudent(prev => (prev && prev._id === student._id) ? { ...prev, idCardImage: data.idCardImage } : prev);
+        }
+      } catch (e) {
+        console.error("Error loading student details:", e);
+      }
+    }
+  };
+
+  const handleViewHistory = async (student) => {
+    setSelectedStudentHistory(student);
+    setIsHistoryModalOpen(true);
+    if (!student.idCardImage && student._id) {
+      try {
+        const { data } = await axios.get(`${API_URL}/${student._id}`);
+        if (data && data.idCardImage) {
+          setSelectedStudentHistory(prev => (prev && prev._id === student._id) ? { ...prev, idCardImage: data.idCardImage } : prev);
+        }
+      } catch (e) {
+        console.error("Error loading student photo for history:", e);
+      }
+    }
   };
 
   const filteredStudents = students.filter(s => {
@@ -1247,10 +1272,7 @@ function App() {
               onResetAll={handleResetAll}
               onUpdatePayment={handleUpdatePayment}
               onUpdateNotes={handleUpdateNotes}
-              onViewHistory={(student) => {
-                setSelectedStudentHistory(student);
-                setIsHistoryModalOpen(true);
-              }}
+              onViewHistory={handleViewHistory}
               onToggleCompensated={handleToggleCompensated}
               customAlert={customAlert}
               customConfirm={customConfirm}

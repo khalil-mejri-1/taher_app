@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Upload } from 'lucide-react';
+import { X, Upload, Loader2 } from 'lucide-react';
 import './RegistrationModal.css';
 
 const RegistrationModal = ({ isOpen, onClose, onSubmit, initialData }) => {
@@ -23,6 +23,7 @@ const RegistrationModal = ({ isOpen, onClose, onSubmit, initialData }) => {
 
   const [formData, setFormData] = useState(initialFormState);
   const [imageName, setImageName] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (initialData) {
@@ -55,8 +56,34 @@ const RegistrationModal = ({ isOpen, onClose, onSubmit, initialData }) => {
     if (file) {
       setImageName(file.name);
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setFormData(prev => ({ ...prev, idCardImage: reader.result }));
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          // Compress & resize image to max 900px dimension and 0.75 quality
+          const maxDim = 900;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+
+          const compressedBase64 = canvas.toDataURL('image/jpeg', 0.75);
+          setFormData(prev => ({ ...prev, idCardImage: compressedBase64 }));
+        };
+        img.src = event.target.result;
       };
       reader.readAsDataURL(file);
     }
@@ -75,15 +102,23 @@ const RegistrationModal = ({ isOpen, onClose, onSubmit, initialData }) => {
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // If status is "En attente", set isArchived to true
-    const submissionData = {
-      ...formData,
-      isArchived: formData.status === 'En attente'
-    };
-    onSubmit(submissionData);
-    setImageName('');
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      // If status is "En attente", set isArchived to true
+      const submissionData = {
+        ...formData,
+        isArchived: formData.status === 'En attente'
+      };
+      await onSubmit(submissionData);
+      setImageName('');
+    } catch (err) {
+      console.error('Error submitting student:', err);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -285,8 +320,19 @@ const RegistrationModal = ({ isOpen, onClose, onSubmit, initialData }) => {
             </div>
           </div>
 
-          <button type="submit" className="submit-btn">
-            {initialData ? 'ENREGISTRER LES MODIFICATIONS' : 'CRÉER LE DOSSIER'}
+          <button 
+            type="submit" 
+            className={`submit-btn ${isSubmitting ? 'btn-is-loading' : ''}`}
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? (
+              <span className="btn-loading-flex">
+                <Loader2 className="spin-loader" size={20} />
+                <span>{initialData ? 'Enregistrement en cours...' : 'Création en cours...'}</span>
+              </span>
+            ) : (
+              initialData ? 'ENREGISTRER LES MODIFICATIONS' : 'CRÉER LE DOSSIER'
+            )}
           </button>
         </form>
       </div>

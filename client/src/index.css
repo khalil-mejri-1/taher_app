@@ -86,3 +86,61 @@ button {
     padding-bottom: 85px;
   }
 }
+
+/* ==========================================================================
+   GLOBAL PROFESSIONAL BUTTON LOADING & LOCKING SYSTEM (نظام قفل وتحميل الأزرار الاحترافي)
+   ========================================================================== */
+@keyframes spinLoader {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes buttonPulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(211, 84, 0, 0);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(211, 84, 0, 0.22);
+  }
+}
+
+.spin-loader {
+  animation: spinLoader 0.75s linear infinite !important;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+button:disabled,
+button[disabled],
+.btn-is-loading {
+  cursor: not-allowed !important;
+  pointer-events: none !important;
+  opacity: 0.75 !important;
+  filter: saturate(0.92);
+  transition: all 0.25s ease-in-out !important;
+}
+
+.btn-is-loading {
+  animation: buttonPulseGlow 1.8s ease-in-out infinite;
+}
+
+.btn-loading-flex {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  line-height: 1;
+}
+
+.btn-loading-flex span {
+  display: inline-block;
+}
+
+.icon-btn-loading {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none !important;
+  cursor: not-allowed !important;
+  opacity: 0.7;
+}

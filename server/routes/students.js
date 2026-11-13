@@ -2,38 +2,27 @@ const express = require("express");
 const router = express.Router();
 const Student = require("../models/Student");
 
-// Get all students
+// Get all students (optimized payload without heavy idCardImage)
 router.get("/", async (req, res) => {
   try {
-    const students = await Student.find();
-
-    // Auto-migrate students with existing totalMoneyPaid but empty payments
-    const bulkOps = [];
-    students.forEach(student => {
-      if ((student.totalMoneyPaid || 0) > 0 && (!student.payments || student.payments.length === 0)) {
-        const initialPayment = {
-          date: student.inscriptionDate || student.createdAt || new Date(),
-          amount: student.totalMoneyPaid,
-          type: student.paymentStatus && student.paymentStatus.includes('Partiel') ? "Paiement Partiel / خلاص جزئي" : "Frais d'inscription / تسجيل",
-          note: "Paiement initial enregistré",
-          month: (student.paidMonths && student.paidMonths.length > 0) ? student.paidMonths[0] : 1
-        };
-        student.payments = [initialPayment];
-        bulkOps.push({
-          updateOne: {
-            filter: { _id: student._id },
-            update: { $set: { payments: [initialPayment] } }
-          }
-        });
-      }
-    });
-
-    if (bulkOps.length > 0) {
-      Student.bulkWrite(bulkOps).catch(e => console.error("Auto-migration payments error:", e));
-    }
-
+    const students = await Student.find({}, { idCardImage: 0 }).lean();
     res.json(students);
   } catch (err) {
+    console.error("Error fetching students:", err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Get a single student with full details (including idCardImage)
+router.get("/:id", async (req, res) => {
+  try {
+    const student = await Student.findById(req.params.id);
+    if (!student) {
+      return res.status(404).json({ message: "Student not found" });
+    }
+    res.json(student);
+  } catch (err) {
+    console.error("Error fetching student by id:", err);
     res.status(500).json({ message: err.message });
   }
 });
