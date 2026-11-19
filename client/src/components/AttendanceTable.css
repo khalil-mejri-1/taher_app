@@ -334,11 +334,14 @@ th {
   left: 0;
   z-index: 25;
   background: #f8fafc !important;
-  width: 190px;
-  min-width: 190px;
-  max-width: 190px;
+  width: 130px;
+  min-width: 130px;
+  max-width: 130px;
   border-right: 2px solid #cbd5e1 !important;
   box-shadow: 3px 0 6px -2px rgba(0, 0, 0, 0.07);
+  padding: 6px 6px !important;
+  font-size: 0.65rem;
+  text-align: center;
 }
 
 .td-student-info {
@@ -346,11 +349,12 @@ th {
   left: 0;
   z-index: 10;
   background: #fff5f5;
-  width: 190px;
-  min-width: 190px;
-  max-width: 190px;
+  width: 130px;
+  min-width: 130px;
+  max-width: 130px;
   border-right: 2px solid #cbd5e1 !important;
   box-shadow: 3px 0 6px -2px rgba(0, 0, 0, 0.07);
+  padding: 5px 6px !important;
 }
 
 tbody tr:hover .td-student-info {
@@ -575,22 +579,22 @@ tbody td {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  max-width: 175px;
+  max-width: 118px;
 }
 
 .student-details strong {
   text-transform: uppercase;
   color: #0f172a;
-  font-size: 0.80rem;
+  font-size: 0.74rem;
   font-weight: 800;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  line-height: 1.2;
+  line-height: 1.15;
 }
 
 .student-details span {
-  font-size: 0.68rem;
+  font-size: 0.63rem;
   color: #d35400;
   font-weight: 700;
   white-space: nowrap;
@@ -1412,9 +1416,9 @@ tbody tr.row-payer {
   /* Sticky student info column slightly narrower on tablets */
   .th-student-info,
   .td-student-info {
-    width: 165px;
-    min-width: 165px;
-    max-width: 165px;
+    width: 120px;
+    min-width: 120px;
+    max-width: 120px;
   }
 }
 
@@ -1479,10 +1483,10 @@ tbody tr.row-payer {
   /* Compact sticky student info column on mobile */
   .th-student-info,
   .td-student-info {
-    width: 140px;
-    min-width: 140px;
-    max-width: 140px;
-    padding: 6px 6px !important;
+    width: 110px;
+    min-width: 110px;
+    max-width: 110px;
+    padding: 4px 4px !important;
   }
 
   .student-cell {

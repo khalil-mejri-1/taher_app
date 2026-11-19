@@ -91,14 +91,15 @@ router.post("/finish-session", async (req, res) => {
       let newCompleted = student.cycle?.completed || 0;
 
       if (isUndo) {
+        const dateStr = new Date(sessionDate).toISOString().split('T')[0];
         const initialCount = newHistory.length;
         const entriesToRemove = newHistory.filter(h =>
-          h.session === sessionKey && new Date(h.date).toISOString().split('T')[0] === new Date(sessionDate).toISOString().split('T')[0]
+          h.session === sessionKey && h.date && new Date(h.date).toISOString().split('T')[0] === dateStr
         );
 
         if (entriesToRemove.length > 0) {
           newHistory = newHistory.filter(h =>
-            !(h.session === sessionKey && new Date(h.date).toISOString().split('T')[0] === new Date(sessionDate).toISOString().split('T')[0])
+            !(h.session === sessionKey && h.date && new Date(h.date).toISOString().split('T')[0] === dateStr)
           );
           const removedCount = initialCount - newHistory.length;
           newTotalCount = Math.max(0, newTotalCount - removedCount);
@@ -111,11 +112,11 @@ router.post("/finish-session", async (req, res) => {
         }
       } else {
         // Normal Finish
-        // Check if already in history for this session/date to avoid duplicates
+        // Check if already in history for this exact session and date to avoid duplicates
         const dateStr = new Date(sessionDate).toISOString().split('T')[0];
         const existingIdx = newHistory.findIndex(h => 
-          h.date && new Date(h.date).toISOString().split('T')[0] === dateStr &&
-          (h.session === sessionKey || h.session?.split('_')[0] === day)
+          h.session === sessionKey &&
+          h.date && new Date(h.date).toISOString().split('T')[0] === dateStr
         );
 
         const isPresent = student.attendance?.some(a => 
@@ -123,11 +124,8 @@ router.post("/finish-session", async (req, res) => {
         );
         
         if (existingIdx !== -1) {
-          // Update the existing entry for this day
-          newHistory[existingIdx].session = sessionKey;
-          if (isPresent) {
-            newHistory[existingIdx].type = 'present';
-          }
+          // Update the existing entry for this session
+          newHistory[existingIdx].type = isPresent ? 'present' : 'absent';
         } else {
           newHistory.push({
             session: sessionKey,

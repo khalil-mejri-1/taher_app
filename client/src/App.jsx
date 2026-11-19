@@ -10,7 +10,7 @@ import NotificationModal from './components/NotificationModal';
 import MobileBottomNav from './components/MobileBottomNav';
 import './index.css';
 
-const BASE_URL = 'https://taher-app.vercel.app';
+const BASE_URL = 'https://motivated-goldenrod-leopard-09.hostingersite.com';
 // const BASE_URL = 'http://localhost:5000';
 const API_URL = `${BASE_URL}/api/students`;
 
@@ -381,12 +381,12 @@ function App() {
 
       if (editingStudent) {
         // --- 1. PRESERVE EXISTING PAYMENT & SESSION INTEGRITY ---
-        const userPaidSessions = formData.paidSessionsCount !== undefined 
-          ? Number(formData.paidSessionsCount) 
+        const userPaidSessions = formData.paidSessionsCount !== undefined
+          ? Number(formData.paidSessionsCount)
           : (editingStudent.paidSessionsCount || 0);
 
-        const userTotalSessions = formData.totalSessionsCount !== undefined 
-          ? Number(formData.totalSessionsCount) 
+        const userTotalSessions = formData.totalSessionsCount !== undefined
+          ? Number(formData.totalSessionsCount)
           : (editingStudent.totalSessionsCount || 0);
 
         submissionData.paidSessionsCount = Math.max(0, userPaidSessions);

@@ -1,0 +1,3 @@
+# Untracked zip and local backups
+server.zip
+server/backup_before_repair.json
